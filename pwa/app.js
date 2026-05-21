@@ -112,9 +112,10 @@ function showSettings() {
 function render() {
   if (!layout?.pages?.length) return;
   const page = layout.pages[pageIndex] || layout.pages[0];
-  const columns = layout.grid?.columns || 4;
+  const columns = layout.grid?.columns || 3;
   const rows = layout.grid?.rows || 8;
   els.grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+  els.grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
   els.pageTitle.textContent = page.title || '控制頁';
   document.documentElement.style.setProperty('--accent', layout.theme?.accent || '#4cc9f0');
   applyDisplaySettings();
