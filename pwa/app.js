@@ -12,6 +12,7 @@ let client = null;
 let pageIndex = 0;
 let deferredInstallPrompt = null;
 let fullscreenAttemptArmed = false;
+const rotaryStates = new Map();
 
 const els = {
   settingsPage: document.getElementById('settingsPage'),
@@ -178,13 +179,20 @@ function render() {
   els.grid.innerHTML = '';
 
   for (let slot = 0; slot < columns * rows; slot++) {
+    if (isCoveredSlot(page.buttons || [], slot, columns)) continue;
     const button = page.buttons?.find(item => Number(item.slot) === slot);
     const node = document.createElement('button');
-    node.className = `pad-button ${button ? '' : 'empty'}`;
+    node.className = `pad-button ${button?.action?.type === 'rotary' ? 'rotary-pad' : ''} ${button ? '' : 'empty'}`;
     node.disabled = !button;
+    if (button?.spanColumns) node.style.gridColumn = `span ${button.spanColumns}`;
+    if (button?.spanRows) node.style.gridRow = `span ${button.spanRows}`;
     if (button?.color) node.style.background = `linear-gradient(145deg, ${button.color}, #0f172a)`;
     node.innerHTML = button ? renderButton(button) : '';
-    node.addEventListener('click', () => sendAction(button));
+    if (button?.action?.type === 'rotary') {
+      setupRotary(node, button);
+    } else {
+      node.addEventListener('click', () => sendAction(button));
+    }
     els.grid.appendChild(node);
   }
 
@@ -201,14 +209,127 @@ function render() {
   });
 }
 
+function isCoveredSlot(buttons, slot, columns) {
+  return buttons.some(button => {
+    const origin = Number(button.slot);
+    const spanColumns = Number(button.spanColumns || 1);
+    const spanRows = Number(button.spanRows || 1);
+    if (spanColumns <= 1 && spanRows <= 1) return false;
+    const originColumn = origin % columns;
+    const originRow = Math.floor(origin / columns);
+    const column = slot % columns;
+    const row = Math.floor(slot / columns);
+    return slot !== origin
+      && row >= originRow
+      && row < originRow + spanRows
+      && column >= originColumn
+      && column < originColumn + spanColumns;
+  });
+}
+
 function applyDisplaySettings() {
   const orientation = layout.display?.orientation || (layout.grid?.columns > layout.grid?.rows ? 'landscape' : 'portrait');
   els.deckPage.classList.toggle('landscape', orientation === 'landscape');
 }
 
 function renderButton(button) {
+  if (button.action?.type === 'rotary') return renderRotary(button);
   const image = button.iconUrl ? `<img src="${escapeHtml(resolveIconUrl(button.iconUrl))}" alt="">` : `<div class="glyph">${escapeHtml(button.icon || '')}</div>`;
   return `<span class="pad-inner">${image}<span class="label">${escapeHtml(button.label || '')}</span></span>`;
+}
+
+function renderRotary(button) {
+  const state = rotaryState(button);
+  const segments = Array.from({ length: 28 }, (_, index) => {
+    const deg = 220 + (index / 27) * 280;
+    const active = state.power && index <= Math.round((state.value / 100) * 27);
+    return `<span class="rotary-seg ${active ? 'on' : ''}" style="transform:rotate(${deg}deg)"></span>`;
+  }).join('');
+  return `
+    <span class="rotary-inner ${state.power ? '' : 'off'}" style="--rotary-angle:${valueToRotation(state.value)}deg">
+      <span class="rotary-title">${escapeHtml(button.label || '音量')}</span>
+      <span class="rotary-wrap">
+        <span class="rotary-base"></span>
+        <span class="rotary-segments">${segments}</span>
+        <span class="rotary-ring"><span class="rotary-dial"></span></span>
+        <span class="rotary-scale"><span>min</span><span>max</span></span>
+      </span>
+      <span class="rotary-value"><span>${String(state.value).padStart(2, '0')}</span><small>VOL</small></span>
+      <span class="rotary-power" role="switch" aria-checked="${state.power}"><span></span>${state.power ? 'ON' : 'OFF'}</span>
+    </span>`;
+}
+
+function rotaryState(button) {
+  if (!rotaryStates.has(button.id)) {
+    rotaryStates.set(button.id, {
+      value: Number(button.value ?? 50),
+      power: true,
+      dragging: false,
+      remainder: 0
+    });
+  }
+  return rotaryStates.get(button.id);
+}
+
+function valueToRotation(value) {
+  return -140 + (value / 100) * 280;
+}
+
+function pointToRotaryValue(node, clientX, clientY) {
+  const rect = node.querySelector('.rotary-wrap').getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  if (deg < 0) deg += 360;
+  let relative = deg - 220;
+  if (relative < 0) relative += 360;
+  relative = Math.min(280, Math.max(0, relative));
+  return Math.round((relative / 280) * 100);
+}
+
+function setupRotary(node, button) {
+  const state = rotaryState(button);
+  const update = nextValue => {
+    if (!state.power) return;
+    const value = Math.min(100, Math.max(0, nextValue));
+    const delta = value - state.value;
+    state.value = value;
+    state.remainder += delta;
+    const stepSize = Number(button.action?.stepSize || 4);
+    const steps = Math.trunc(state.remainder / stepSize);
+    if (steps !== 0) {
+      state.remainder -= steps * stepSize;
+      const command = steps > 0 ? button.action?.upCommand || 'volume_up' : button.action?.downCommand || 'volume_down';
+      for (let count = 0; count < Math.min(8, Math.abs(steps)); count++) {
+        sendAction(button, { type: 'media', command });
+      }
+      navigator.vibrate?.(10);
+    }
+    node.innerHTML = renderRotary(button);
+  };
+
+  node.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    const powerButton = event.target instanceof Element ? event.target.closest('.rotary-power') : null;
+    if (powerButton) {
+      state.power = !state.power;
+      sendAction(button, { type: 'media', command: button.action?.muteCommand || 'mute' });
+      node.innerHTML = renderRotary(button);
+      return;
+    }
+    state.dragging = true;
+    node.setPointerCapture(event.pointerId);
+    update(pointToRotaryValue(node, event.clientX, event.clientY));
+  });
+  node.addEventListener('pointermove', event => {
+    if (!state.dragging) return;
+    event.preventDefault();
+    update(pointToRotaryValue(node, event.clientX, event.clientY));
+  });
+  node.addEventListener('pointerup', () => { state.dragging = false; });
+  node.addEventListener('pointercancel', () => { state.dragging = false; });
 }
 
 function resolveIconUrl(url) {
@@ -217,14 +338,14 @@ function resolveIconUrl(url) {
   return `../${url}`;
 }
 
-function sendAction(button) {
+function sendAction(button, actionOverride = null) {
   if (!button || !client?.connected) return;
   const payload = {
     id: button.id,
     label: button.label,
     page: layout.pages[pageIndex]?.id,
     slot: button.slot,
-    action: button.action,
+    action: actionOverride || button.action,
     at: Date.now()
   };
   client.publish(`${settings.baseTopic}/action`, JSON.stringify(payload), { qos: 1 });
