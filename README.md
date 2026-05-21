@@ -65,8 +65,12 @@ http://電腦IP:8080/config.html
 在設定頁中：
 
 - 匯入 `installed-app-icons-report/installed_apps_icons.csv`
+- 若要讓 GitHub Pages 與手機 PWA 也顯示 APP icon，建議匯入 `installed_apps_icons_report.html`；設定頁會使用報表中的內嵌 icon
 - 把 APP 從左側清單拖到 4x8 方格
+- 拖入方格後會在陣列中顯示該 APP 的 icon 圖樣
 - 設定頁面名稱，例如「啟動應用程式」、「多媒體操控」、「巨集鍵盤指令」
+- 選擇直立式 `4 x 8` 或橫式 `8 x 4`
+- 可貼上背景圖片 URL / 路徑，或直接選擇圖片檔讓設定頁內嵌到 layout
 - 按「儲存 / 匯出 layout JSON」
 - 將輸出的檔案存成專案根目錄的 `macro_pad_layout.json`
 
