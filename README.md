@@ -53,7 +53,7 @@ wss://broker.emqx.io:8084/mqtt
 若使用 GitHub Pages，可直接開啟公開設定頁。若要用本機模式，也可以啟動 Python runtime 後，用電腦瀏覽器打開設定頁：
 
 ```powershell
-python macro_pad_runtime.py --mqtt-host 127.0.0.1
+python macro_pad_runtime.py
 ```
 
 設定頁網址：
@@ -79,15 +79,18 @@ http://電腦IP:8080/config.html
 ## 執行電腦端 Runtime
 
 ```powershell
-python macro_pad_runtime.py --mqtt-host 127.0.0.1 --base-topic macro-pad
+python macro_pad_runtime.py --base-topic macro-pad
 ```
 
 常用參數：
 
 ```text
 --layout macro_pad_layout.json
---mqtt-host 192.168.1.10
---mqtt-port 1883
+--mqtt-host broker.emqx.io
+--mqtt-port 8084
+--mqtt-transport websockets
+--mqtt-websocket-path /mqtt
+--mqtt-tls / --no-mqtt-tls
 --mqtt-user 使用者
 --mqtt-password 密碼
 --base-topic macro-pad
@@ -105,7 +108,7 @@ Runtime 會：
 如果已經使用 GitHub Pages 提供 `config.html` 與 `pwa/`，runtime 可關閉本機網頁伺服器：
 
 ```powershell
-python macro_pad_runtime.py --mqtt-host 127.0.0.1 --base-topic macro-pad --no-http
+python macro_pad_runtime.py --base-topic macro-pad --no-http
 ```
 
 ## MQTT Broker 注意事項
@@ -126,7 +129,13 @@ listener 9001
 protocol websockets
 ```
 
-Python runtime 連 `1883`，手機 PWA 連 `9001`。
+如果要改回本機 Mosquitto，Python runtime 可用：
+
+```powershell
+python macro_pad_runtime.py --mqtt-host 127.0.0.1 --mqtt-port 1883 --mqtt-transport tcp --no-mqtt-tls
+```
+
+手機 PWA 仍需連 Mosquitto 的 WebSocket listener，例如 `ws://電腦IP:9001`；若手機 PWA 是從 GitHub Pages 開啟，則建議使用 `wss://`。
 
 ## 手機 PWA
 
