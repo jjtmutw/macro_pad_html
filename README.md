@@ -145,7 +145,7 @@ python macro_pad_runtime.py --mqtt-host 127.0.0.1 --mqtt-port 1883 --mqtt-transp
 http://電腦IP:8080/pwa/
 ```
 
-第一頁填 MQTT WebSocket URL、帳號密碼與 base topic。連線後，Python runtime 會把 layout 傳到手機，手機會顯示後續控制頁。
+第一頁填 MQTT WebSocket URL、帳號密碼與 base topic。也可以按「加入主畫面」啟動瀏覽器支援的 PWA 安裝流程；若瀏覽器不支援程式化安裝提示，畫面會提示改用瀏覽器選單加入主畫面。連線後，Python runtime 會把 layout 傳到手機，手機會顯示後續控制頁。
 
 若要正式安裝成 PWA，手機瀏覽器通常需要 HTTPS 或 localhost 這類安全來源。開發測試時可先直接用瀏覽器全螢幕開啟。
 
