@@ -204,8 +204,6 @@ function render() {
 function applyDisplaySettings() {
   const orientation = layout.display?.orientation || (layout.grid?.columns > layout.grid?.rows ? 'landscape' : 'portrait');
   els.deckPage.classList.toggle('landscape', orientation === 'landscape');
-  const backgroundImage = layout.display?.backgroundImage || '';
-  els.deckPage.style.setProperty('--deck-bg-image', backgroundImage ? `url("${backgroundImage.replaceAll('"', '\\"')}")` : 'none');
 }
 
 function renderButton(button) {
