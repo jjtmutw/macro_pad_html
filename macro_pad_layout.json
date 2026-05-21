@@ -436,7 +436,7 @@
           "slot": 0,
           "label": "上一首",
           "icon": "⏮",
-          "color": "#ef4444",
+          "color": "#22c55e",
           "action": {
             "type": "media",
             "command": "previous"
@@ -447,7 +447,7 @@
           "slot": 1,
           "label": "播放/暫停",
           "icon": "⏯",
-          "color": "#ef4444",
+          "color": "#22c55e",
           "action": {
             "type": "media",
             "command": "play_pause"
@@ -458,7 +458,7 @@
           "slot": 2,
           "label": "下一首",
           "icon": "⏭",
-          "color": "#ef4444",
+          "color": "#22c55e",
           "action": {
             "type": "media",
             "command": "next"
@@ -471,7 +471,7 @@
           "spanRows": 3,
           "label": "音量旋鈕",
           "icon": "🔊",
-          "color": "#26313d",
+          "color": "#14532d",
           "value": 50,
           "action": {
             "type": "rotary",
