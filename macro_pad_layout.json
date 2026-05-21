@@ -769,6 +769,20 @@
               "f1"
             ]
           }
+        },
+        {
+          "id": "macro-close-window",
+          "slot": 19,
+          "label": "關閉視窗",
+          "icon": "F4",
+          "color": "#b91c1c",
+          "action": {
+            "type": "hotkey",
+            "keys": [
+              "alt",
+              "f4"
+            ]
+          }
         }
       ]
     }
