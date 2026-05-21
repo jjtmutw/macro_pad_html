@@ -106,9 +106,6 @@
       margin: 0 auto;
       border: 1px solid #303846;
       background: #151922;
-      background-image: var(--deck-bg-image, none);
-      background-size: cover;
-      background-position: center;
       border-radius: 8px;
       padding: 18px;
       box-shadow: 0 18px 60px rgba(0,0,0,.28);
@@ -235,12 +232,6 @@
             <option value="landscape">橫式 8 x 3</option>
           </select>
         </label>
-        <label>陣列背景圖片 URL / 路徑
-          <input id="backgroundInput" placeholder="可貼上 https 圖片網址，或使用下方檔案選擇">
-        </label>
-        <label>選擇背景圖片檔案
-          <input id="backgroundFileInput" type="file" accept="image/*">
-        </label>
         <label>按鈕標籤
           <input id="labelInput">
         </label>
@@ -281,7 +272,7 @@
       version: 1,
       deviceName: 'Phone Stream Deck',
       grid: { columns: 3, rows: 8 },
-      display: { orientation: 'portrait', backgroundImage: '' },
+      display: { orientation: 'portrait' },
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
       pages: [
         { id: 'apps', title: '啟動應用程式', buttons: [] },
@@ -303,8 +294,6 @@
     const inputs = {
       pageTitle: document.getElementById('pageTitleInput'),
       orientation: document.getElementById('orientationInput'),
-      background: document.getElementById('backgroundInput'),
-      backgroundFile: document.getElementById('backgroundFileInput'),
       label: document.getElementById('labelInput'),
       icon: document.getElementById('iconInput'),
       color: document.getElementById('colorInput'),
@@ -321,7 +310,7 @@
 
     function page() { return layout.pages[pageIndex]; }
     function display() {
-      layout.display ||= { orientation: 'portrait', backgroundImage: '' };
+      layout.display ||= { orientation: 'portrait' };
       return layout.display;
     }
     function maxSlots() { return (layout.grid.columns || 3) * (layout.grid.rows || 8); }
@@ -393,7 +382,6 @@
       document.getElementById('gridSizeText').textContent = `${layout.grid.columns || 3} x ${layout.grid.rows || 8}`;
       inputs.pageTitle.value = page().title || '';
       inputs.orientation.value = display().orientation || 'portrait';
-      inputs.background.value = display().backgroundImage || '';
       inputs.label.value = current?.label || '';
       inputs.icon.value = current?.icon || '';
       inputs.color.value = current?.color || '#2563eb';
@@ -489,20 +477,6 @@
     inputs.orientation.addEventListener('change', () => {
       updateDisplaySettings();
       saveLocal('已更新顯示方向。');
-      render();
-    });
-
-    inputs.background.addEventListener('change', () => {
-      display().backgroundImage = toBackgroundUrl(inputs.background.value.trim());
-      saveLocal('已更新背景圖片。');
-      render();
-    });
-
-    inputs.backgroundFile.addEventListener('change', async event => {
-      const file = event.target.files[0];
-      if (!file) return;
-      display().backgroundImage = await fileToDataUrl(file);
-      saveLocal('已將背景圖片內嵌到 layout。');
       render();
     });
 
@@ -630,7 +604,6 @@
     function updateDisplaySettings() {
       const orientation = inputs.orientation.value || 'portrait';
       display().orientation = orientation;
-      display().backgroundImage = toBackgroundUrl(inputs.background.value.trim());
       layout.grid = orientation === 'landscape'
         ? { columns: 8, rows: 3 }
         : { columns: 3, rows: 8 };
@@ -642,25 +615,6 @@
         ? { columns: 8, rows: 3 }
         : { columns: 3, rows: 8 };
       deckShellEl.classList.toggle('landscape', orientation === 'landscape');
-      const bg = display().backgroundImage || '';
-      deckShellEl.style.setProperty('--deck-bg-image', bg ? `url("${bg.replaceAll('"', '\\"')}")` : 'none');
-    }
-
-    function toBackgroundUrl(value) {
-      if (!value) return '';
-      if (/^(data:|https?:|blob:|file:)/i.test(value)) return value;
-      const normalized = value.replaceAll('\\', '/');
-      if (/^[A-Za-z]:\//.test(normalized)) return `file:///${normalized}`;
-      return value;
-    }
-
-    function fileToDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
     }
 
     function parseCsv(text) {
