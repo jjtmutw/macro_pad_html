@@ -11,7 +11,9 @@ Responsibilities:
 from __future__ import annotations
 
 import argparse
+from collections import OrderedDict
 import ctypes
+from ctypes import wintypes
 import json
 import os
 import platform
@@ -107,6 +109,9 @@ OFFICE_ICON_TARGETS = {
     "xlicons.exe": "excel.exe",
     "pptico.exe": "powerpnt.exe",
 }
+
+ERROR_ALREADY_EXISTS = 183
+_single_instance_mutex: int | None = None
 
 
 def load_layout(path: Path) -> dict[str, Any]:
@@ -328,6 +333,42 @@ def default_client_id() -> str:
     return f"macro-pad-{safe_host}-{suffix}"
 
 
+def action_dedupe_key(payload: dict[str, Any]) -> str:
+    return json.dumps(
+        {
+            "id": payload.get("id"),
+            "page": payload.get("page"),
+            "slot": payload.get("slot"),
+            "at": payload.get("at"),
+            "action": payload.get("action"),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def acquire_single_instance_lock() -> None:
+    global _single_instance_mutex
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    mutex_name = "Global\\MacroPadRuntimeSingleton"
+    handle = kernel32.CreateMutexW(None, False, mutex_name)
+    if not handle:
+        raise OSError("failed to create single-instance mutex")
+    if ctypes.GetLastError() == ERROR_ALREADY_EXISTS:
+        kernel32.CloseHandle(handle)
+        raise RuntimeError("macro_pad_runtime is already running. Please close the existing instance first.")
+    _single_instance_mutex = handle
+
+
+def release_single_instance_lock() -> None:
+    global _single_instance_mutex
+    if _single_instance_mutex:
+        ctypes.windll.kernel32.CloseHandle(_single_instance_mutex)
+        _single_instance_mutex = None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the PC-side macro pad MQTT bridge.")
     parser.add_argument("--layout", type=Path, default=DEFAULT_LAYOUT)
@@ -345,6 +386,11 @@ def main() -> int:
     parser.add_argument("--no-http", action="store_true", help="Disable the optional local static web server.")
     parser.add_argument("--allow-shell", action="store_true")
     args = parser.parse_args()
+    try:
+        acquire_single_instance_lock()
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     layout_path = args.layout.resolve()
     http_server = None if args.no_http else start_http_server(args.http_host, args.http_port)
@@ -357,6 +403,7 @@ def main() -> int:
     action_topic = f"{args.base_topic}/action"
     hello_topic = f"{args.base_topic}/hello"
     status_topic = f"{args.base_topic}/status"
+    recent_actions: OrderedDict[str, float] = OrderedDict()
 
     client = mqtt.Client(
         mqtt.CallbackAPIVersion.VERSION2,
@@ -391,6 +438,18 @@ def main() -> int:
                 publish_layout()
                 return
             payload = json.loads(msg.payload.decode("utf-8"))
+            dedupe_key = action_dedupe_key(payload)
+            now = time.monotonic()
+            while recent_actions:
+                oldest_key, oldest_at = next(iter(recent_actions.items()))
+                if now - oldest_at <= 8:
+                    break
+                recent_actions.pop(oldest_key)
+            if dedupe_key in recent_actions:
+                client.publish(status_topic, json.dumps({"ok": True, "id": payload.get("id"), "duplicate": True}), qos=0)
+                print(f"Skipped duplicate action: {payload.get('label', '')}")
+                return
+            recent_actions[dedupe_key] = now
             action = normalize_action(payload)
             execute_action(action, allow_shell=args.allow_shell)
             client.publish(status_topic, json.dumps({"ok": True, "id": payload.get("id")}), qos=0)
@@ -420,6 +479,7 @@ def main() -> int:
     finally:
         if http_server:
             http_server.shutdown()
+        release_single_instance_lock()
     return 0
 
 
