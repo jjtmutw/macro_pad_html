@@ -1,1 +1,193 @@
-@pwa/styles.css
+:root {
+  color-scheme: dark;
+  font-family: "Microsoft JhengHei UI", "Segoe UI", system-ui, sans-serif;
+  background: #05070a;
+  color: #f8fafc;
+  touch-action: manipulation;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; background: #05070a; }
+button, input { font: inherit; }
+
+.phone {
+  min-height: 100svh;
+  padding: max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% -10%, rgba(76, 201, 240, .18), transparent 36%),
+    #05070a;
+}
+
+.hidden { display: none !important; }
+
+.settings {
+  min-height: calc(100svh - 28px);
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.settings h1 { margin: 0; font-size: 36px; letter-spacing: 0; }
+.settings p { margin: 0; color: #aab4c2; line-height: 1.5; }
+.form { display: grid; gap: 12px; }
+label { display: grid; gap: 6px; color: #aab4c2; font-size: 13px; }
+input {
+  width: 100%;
+  border: 1px solid #303846;
+  background: #111720;
+  color: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+}
+button {
+  border: 1px solid #303846;
+  background: #1b222d;
+  color: #f8fafc;
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+}
+#connectButton { background: #1677ff; border-color: #1677ff; font-weight: 800; }
+.status, .connection { color: #8d99a8; font-size: 13px; min-height: 18px; }
+
+.deck {
+  min-height: calc(100svh - 24px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  background-image: var(--deck-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  padding: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.deck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 7, 10, .68);
+  pointer-events: none;
+}
+
+.deck > * {
+  position: relative;
+  z-index: 1;
+}
+
+.deck-header {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+#settingsButton {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  font-size: 20px;
+}
+
+.page-title {
+  font-weight: 900;
+  font-size: clamp(20px, 6vw, 32px);
+  line-height: 1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: clamp(7px, 2vw, 12px);
+  min-height: 0;
+}
+
+.pad-button {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  color: white;
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 8px 14px rgba(0,0,0,.28);
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pad-button.empty {
+  opacity: .32;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.pad-button:active {
+  transform: translateY(2px) scale(.98);
+  filter: brightness(1.18);
+}
+
+.pad-inner {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.pad-button img {
+  width: min(48px, 54%);
+  height: min(48px, 54%);
+  object-fit: contain;
+}
+
+.glyph {
+  font-size: clamp(18px, 6vw, 30px);
+  font-weight: 900;
+}
+
+.label {
+  max-width: 100%;
+  font-size: clamp(9px, 2.6vw, 12px);
+  line-height: 1.15;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.page-nav {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+  min-height: 46px;
+}
+
+.page-nav button.active {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #f8fafc;
+}
+
+@media (orientation: landscape) {
+  .phone { padding: 10px; }
+  .deck { gap: 8px; }
+  .deck-header { grid-template-columns: 42px 1fr; }
+  #settingsButton { width: 42px; height: 42px; }
+  .page-nav { min-height: 40px; }
+}
+
+.deck.landscape {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
