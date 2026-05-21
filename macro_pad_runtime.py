@@ -28,8 +28,23 @@ from typing import Any
 import paho.mqtt.client as mqtt
 
 
-ROOT = Path(__file__).resolve().parent
+def runtime_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def bundled_root() -> Path:
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS).resolve()
+    return runtime_root()
+
+
+ROOT = runtime_root()
+BUNDLED_ROOT = bundled_root()
 DEFAULT_LAYOUT = ROOT / "macro_pad_layout.json"
+if not DEFAULT_LAYOUT.exists():
+    DEFAULT_LAYOUT = BUNDLED_ROOT / "macro_pad_layout.json"
 
 MEDIA_KEYS = {
     "play_pause": 0xB3,
@@ -292,7 +307,7 @@ def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
 def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
-            super().__init__(*args, directory=str(ROOT), **kwargs)
+            super().__init__(*args, directory=str(BUNDLED_ROOT), **kwargs)
 
         def end_headers(self) -> None:
             self.send_header("Cache-Control", "no-store")

@@ -6,6 +6,13 @@ const defaultSettings = {
   baseTopic: 'macro-pad'
 };
 
+function readUrlSettings() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    baseTopic: params.get('topic')?.trim() || ''
+  };
+}
+
 let settings = JSON.parse(localStorage.getItem('macroPadMqtt') || JSON.stringify(defaultSettings));
 let layout = JSON.parse(localStorage.getItem('macroPadLayout') || 'null');
 let client = null;
@@ -30,6 +37,16 @@ const els = {
   grid: document.getElementById('grid'),
   pageNav: document.getElementById('pageNav')
 };
+
+function applyUrlSettings() {
+  const overrides = readUrlSettings();
+  if (!overrides.baseTopic) return;
+  settings = {
+    ...settings,
+    baseTopic: overrides.baseTopic
+  };
+  localStorage.setItem('macroPadMqtt', JSON.stringify(settings));
+}
 
 function fillSettings() {
   els.mqttUrl.value = settings.mqttUrl;
@@ -374,6 +391,7 @@ window.addEventListener('appinstalled', () => {
   setStatus('已加入主畫面。');
 });
 
+applyUrlSettings();
 fillSettings();
 refreshInstallButton();
 armStandaloneFullscreen();
