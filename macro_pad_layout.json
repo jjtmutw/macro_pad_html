@@ -501,12 +501,12 @@
     },
     {
       "id": "macros",
-      "title": "??????",
+      "title": "巨集鍵盤指令",
       "buttons": [
         {
           "id": "macro-copy",
           "slot": 0,
-          "label": "??",
+          "label": "複製",
           "icon": "C",
           "color": "#7c3aed",
           "action": {
@@ -520,7 +520,7 @@
         {
           "id": "macro-paste",
           "slot": 1,
-          "label": "??",
+          "label": "貼上",
           "icon": "V",
           "color": "#2563eb",
           "action": {
@@ -534,7 +534,7 @@
         {
           "id": "macro-cut",
           "slot": 2,
-          "label": "??",
+          "label": "剪下",
           "icon": "X",
           "color": "#0f766e",
           "action": {
@@ -548,7 +548,7 @@
         {
           "id": "macro-undo",
           "slot": 3,
-          "label": "??",
+          "label": "復原",
           "icon": "Z",
           "color": "#b45309",
           "action": {
@@ -562,7 +562,7 @@
         {
           "id": "macro-redo",
           "slot": 4,
-          "label": "??",
+          "label": "重做",
           "icon": "Y",
           "color": "#7c3aed",
           "action": {
@@ -576,7 +576,7 @@
         {
           "id": "macro-select-all",
           "slot": 5,
-          "label": "??",
+          "label": "全選",
           "icon": "A",
           "color": "#2563eb",
           "action": {
@@ -590,7 +590,7 @@
         {
           "id": "macro-save",
           "slot": 6,
-          "label": "????",
+          "label": "儲存檔案",
           "icon": "S",
           "color": "#0f766e",
           "action": {
@@ -604,7 +604,7 @@
         {
           "id": "macro-next-tab",
           "slot": 7,
-          "label": "????",
+          "label": "切換分頁",
           "icon": "Tab",
           "color": "#b45309",
           "action": {
@@ -618,7 +618,7 @@
         {
           "id": "macro-close-tab",
           "slot": 8,
-          "label": "????",
+          "label": "關閉分頁",
           "icon": "W",
           "color": "#7c3aed",
           "action": {
@@ -632,7 +632,7 @@
         {
           "id": "macro-refresh-f5",
           "slot": 9,
-          "label": "????",
+          "label": "重新整理",
           "icon": "F5",
           "color": "#2563eb",
           "action": {
@@ -645,7 +645,7 @@
         {
           "id": "macro-refresh-ctrl-r",
           "slot": 10,
-          "label": "???? Ctrl+R",
+          "label": "重新整理 Ctrl+R",
           "icon": "R",
           "color": "#0f766e",
           "action": {
@@ -659,7 +659,7 @@
         {
           "id": "macro-new-tab",
           "slot": 11,
-          "label": "????",
+          "label": "開新分頁",
           "icon": "T",
           "color": "#b45309",
           "action": {
@@ -673,7 +673,7 @@
         {
           "id": "macro-incognito",
           "slot": 12,
-          "label": "??????",
+          "label": "開新無痕視窗",
           "icon": "N",
           "color": "#7c3aed",
           "action": {
@@ -688,7 +688,7 @@
         {
           "id": "macro-save-as",
           "slot": 13,
-          "label": "????",
+          "label": "另存新檔",
           "icon": "SS",
           "color": "#2563eb",
           "action": {
@@ -703,7 +703,7 @@
         {
           "id": "macro-zoom-in",
           "slot": 14,
-          "label": "????",
+          "label": "放大視窗",
           "icon": "+",
           "color": "#0f766e",
           "action": {
@@ -717,7 +717,7 @@
         {
           "id": "macro-zoom-out",
           "slot": 15,
-          "label": "????",
+          "label": "縮小視窗",
           "icon": "-",
           "color": "#b45309",
           "action": {
@@ -731,7 +731,7 @@
         {
           "id": "macro-properties",
           "slot": 16,
-          "label": "????",
+          "label": "物件屬性",
           "icon": "Alt",
           "color": "#7c3aed",
           "action": {
@@ -745,7 +745,7 @@
         {
           "id": "macro-insert-table",
           "slot": 17,
-          "label": "????",
+          "label": "插入表格",
           "icon": "T",
           "color": "#2563eb",
           "action": {
@@ -759,7 +759,7 @@
         {
           "id": "macro-insert-chart",
           "slot": 18,
-          "label": "????",
+          "label": "插入圖表",
           "icon": "F1",
           "color": "#0f766e",
           "action": {
