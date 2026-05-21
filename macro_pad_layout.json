@@ -1,1 +1,98 @@
-@macro_pad_layout.json
+{
+  "version": 1,
+  "deviceName": "Phone Stream Deck",
+  "grid": { "columns": 4, "rows": 8 },
+  "display": {
+    "orientation": "portrait",
+    "backgroundImage": ""
+  },
+  "theme": {
+    "background": "#101216",
+    "surface": "#181c22",
+    "accent": "#4cc9f0",
+    "text": "#f8fafc"
+  },
+  "pages": [
+    {
+      "id": "apps",
+      "title": "啟動應用程式",
+      "buttons": []
+    },
+    {
+      "id": "media",
+      "title": "多媒體操控",
+      "buttons": [
+        {
+          "id": "media-prev",
+          "slot": 0,
+          "label": "上一首",
+          "icon": "⏮",
+          "color": "#ef4444",
+          "action": { "type": "media", "command": "previous" }
+        },
+        {
+          "id": "media-play",
+          "slot": 1,
+          "label": "播放/暫停",
+          "icon": "⏯",
+          "color": "#ef4444",
+          "action": { "type": "media", "command": "play_pause" }
+        },
+        {
+          "id": "media-next",
+          "slot": 2,
+          "label": "下一首",
+          "icon": "⏭",
+          "color": "#ef4444",
+          "action": { "type": "media", "command": "next" }
+        },
+        {
+          "id": "media-mute",
+          "slot": 3,
+          "label": "靜音",
+          "icon": "🔇",
+          "color": "#111827",
+          "action": { "type": "media", "command": "mute" }
+        },
+        {
+          "id": "volume-down",
+          "slot": 4,
+          "label": "音量 -",
+          "icon": "🔉",
+          "color": "#2563eb",
+          "action": { "type": "media", "command": "volume_down" }
+        },
+        {
+          "id": "volume-up",
+          "slot": 5,
+          "label": "音量 +",
+          "icon": "🔊",
+          "color": "#2563eb",
+          "action": { "type": "media", "command": "volume_up" }
+        }
+      ]
+    },
+    {
+      "id": "macros",
+      "title": "巨集鍵盤指令",
+      "buttons": [
+        {
+          "id": "copy",
+          "slot": 0,
+          "label": "複製",
+          "icon": "⌘C",
+          "color": "#7c3aed",
+          "action": { "type": "hotkey", "keys": ["ctrl", "c"] }
+        },
+        {
+          "id": "paste",
+          "slot": 1,
+          "label": "貼上",
+          "icon": "⌘V",
+          "color": "#7c3aed",
+          "action": { "type": "hotkey", "keys": ["ctrl", "v"] }
+        }
+      ]
+    }
+  ]
+}
