@@ -87,9 +87,10 @@ button {
 
 .deck-header {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(74px, auto);
   gap: 7px;
   align-items: center;
+  min-height: 32px;
 }
 
 #settingsButton {
@@ -100,10 +101,27 @@ button {
   min-height: 32px;
 }
 
-.page-title {
+.brand-title {
   font-weight: 900;
-  font-size: clamp(15px, 4.4vw, 22px);
-  line-height: 1.05;
+  font-size: clamp(14px, 3.2vw, 20px);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+.header-side {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 0;
+}
+
+.designer {
+  color: rgba(248,250,252,.72);
+  font-size: clamp(8px, 1.65vw, 11px);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .grid {
@@ -381,9 +399,9 @@ button {
 @media (orientation: landscape) {
   .phone { padding: 6px; }
   .deck { height: calc(100svh - 12px); gap: 5px; }
-  .deck-header { grid-template-columns: 30px 1fr; }
+  .deck-header { grid-template-columns: 30px minmax(0, 1fr) minmax(70px, auto); }
   #settingsButton { width: 30px; height: 30px; min-height: 30px; }
-  .page-title { font-size: clamp(13px, 2.4vw, 18px); }
+  .brand-title { font-size: clamp(13px, 2.4vw, 18px); }
   .page-nav { min-height: 26px; }
   .page-nav button { min-height: 26px; font-size: 10px; }
 }
