@@ -19,17 +19,13 @@ import ssl
 import subprocess
 import sys
 import threading
+import time
 import winreg
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
 import paho.mqtt.client as mqtt
-
-try:
-    import pyautogui
-except Exception:  # pragma: no cover - reported at runtime.
-    pyautogui = None
 
 
 ROOT = Path(__file__).resolve().parent
@@ -44,6 +40,50 @@ MEDIA_KEYS = {
     "volume_down": 0xAE,
     "volume_up": 0xAF,
 }
+
+KEY_ALIASES = {
+    "ctrl": 0x11,
+    "control": 0x11,
+    "shift": 0x10,
+    "alt": 0x12,
+    "win": 0x5B,
+    "windows": 0x5B,
+    "cmd": 0x5B,
+    "enter": 0x0D,
+    "return": 0x0D,
+    "tab": 0x09,
+    "esc": 0x1B,
+    "escape": 0x1B,
+    "space": 0x20,
+    "backspace": 0x08,
+    "delete": 0x2E,
+    "del": 0x2E,
+    "insert": 0x2D,
+    "ins": 0x2D,
+    "home": 0x24,
+    "end": 0x23,
+    "pageup": 0x21,
+    "pgup": 0x21,
+    "pagedown": 0x22,
+    "pgdn": 0x22,
+    "left": 0x25,
+    "up": 0x26,
+    "right": 0x27,
+    "down": 0x28,
+    "+": 0xBB,
+    "plus": 0xBB,
+    "-": 0xBD,
+    "minus": 0xBD,
+}
+
+for index in range(1, 25):
+    KEY_ALIASES[f"f{index}"] = 0x70 + index - 1
+for char in "abcdefghijklmnopqrstuvwxyz":
+    KEY_ALIASES[char] = ord(char.upper())
+for char in "0123456789":
+    KEY_ALIASES[char] = ord(char)
+
+MODIFIER_KEYS = {0x10, 0x11, 0x12, 0x5B}
 
 OFFICE_ICON_TARGETS = {
     "wordicon.exe": "winword.exe",
@@ -151,30 +191,86 @@ def run_launch(action: dict[str, Any]) -> None:
         run_as_admin(target, str(args or ""), cwd)
 
 
+def keybd(vk: int, key_up: bool = False) -> None:
+    ctypes.windll.user32.keybd_event(vk, 0, 2 if key_up else 0, 0)
+
+
+def key_spec(key: str) -> tuple[int, list[int]]:
+    value = str(key).strip().lower()
+    if not value:
+        raise ValueError("empty hotkey key")
+    if value in KEY_ALIASES:
+        return KEY_ALIASES[value], []
+
+    scan = ctypes.windll.user32.VkKeyScanW(value[0])
+    if scan == -1:
+        raise ValueError(f"unsupported hotkey key: {key}")
+
+    vk = scan & 0xFF
+    shift_state = (scan >> 8) & 0xFF
+    modifiers = []
+    if shift_state & 1:
+        modifiers.append(KEY_ALIASES["shift"])
+    if shift_state & 2:
+        modifiers.append(KEY_ALIASES["ctrl"])
+    if shift_state & 4:
+        modifiers.append(KEY_ALIASES["alt"])
+    return vk, modifiers
+
+
+def press_virtual_key(vk: int, modifiers: list[int] | None = None) -> None:
+    modifiers = modifiers or []
+    for modifier in modifiers:
+        keybd(modifier)
+    keybd(vk)
+    keybd(vk, key_up=True)
+    for modifier in reversed(modifiers):
+        keybd(modifier, key_up=True)
+
+
 def run_media(action: dict[str, Any]) -> None:
     command = str(action.get("command") or "")
     vk = MEDIA_KEYS.get(command)
     if not vk:
         raise ValueError(f"unknown media command: {command}")
-    user32 = ctypes.windll.user32
-    user32.keybd_event(vk, 0, 0, 0)
-    user32.keybd_event(vk, 0, 2, 0)
+    press_virtual_key(vk)
 
 
 def run_hotkey(action: dict[str, Any]) -> None:
-    if pyautogui is None:
-        raise RuntimeError("pyautogui is not installed")
     keys = action.get("keys")
     if not isinstance(keys, list) or not keys:
         raise ValueError("hotkey action missing keys")
-    pyautogui.hotkey(*[str(key).lower() for key in keys])
+
+    modifiers: list[int] = []
+    normal_keys: list[int] = []
+    for key in keys:
+        vk, implied_modifiers = key_spec(str(key))
+        for modifier in implied_modifiers:
+            if modifier not in modifiers:
+                modifiers.append(modifier)
+        if vk in MODIFIER_KEYS:
+            if vk not in modifiers:
+                modifiers.append(vk)
+        else:
+            normal_keys.append(vk)
+
+    for modifier in modifiers:
+        keybd(modifier)
+    for vk in normal_keys:
+        keybd(vk)
+        keybd(vk, key_up=True)
+    for modifier in reversed(modifiers):
+        keybd(modifier, key_up=True)
 
 
 def run_text(action: dict[str, Any]) -> None:
-    if pyautogui is None:
-        raise RuntimeError("pyautogui is not installed")
     text = str(action.get("text") or "")
-    pyautogui.write(text, interval=float(action.get("interval") or 0))
+    interval = float(action.get("interval") or 0)
+    for char in text:
+        vk, modifiers = key_spec(char)
+        press_virtual_key(vk, modifiers)
+        if interval > 0:
+            time.sleep(interval)
 
 
 def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
