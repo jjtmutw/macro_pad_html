@@ -17,10 +17,10 @@ python -m pip install -r requirements.txt
 先掃描電腦上的開始功能表與桌面捷徑：
 
 ```powershell
-python app_icon_reporter.py --no-open
+python app_icon_reporter.py
 ```
 
-預設會建立：
+預設會建立並自動開啟 `installed_apps_icons_report.html`，可直接在報表中勾選要放進 Macro Pad 的 APP：
 
 ```text
 installed-app-icons-report/
