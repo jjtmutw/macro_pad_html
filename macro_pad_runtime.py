@@ -19,6 +19,7 @@ import ssl
 import subprocess
 import sys
 import threading
+import winreg
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,12 @@ MEDIA_KEYS = {
     "mute": 0xAD,
     "volume_down": 0xAE,
     "volume_up": 0xAF,
+}
+
+OFFICE_ICON_TARGETS = {
+    "wordicon.exe": "winword.exe",
+    "xlicons.exe": "excel.exe",
+    "pptico.exe": "powerpnt.exe",
 }
 
 
@@ -75,6 +82,42 @@ def action_context(action: dict[str, Any]) -> str:
     return f" ({', '.join(details)})" if details else ""
 
 
+def app_path_from_registry(exe_name: str) -> str:
+    subkeys = (
+        fr"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}",
+        fr"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}",
+    )
+    for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        for subkey in subkeys:
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    value, _ = winreg.QueryValueEx(key, "")
+                    if value:
+                        return os.path.expandvars(str(value))
+            except OSError:
+                continue
+    return ""
+
+
+def resolve_launch_target(target: str) -> str:
+    expanded = os.path.expandvars(str(target))
+    office_exe = OFFICE_ICON_TARGETS.get(Path(expanded).name.casefold())
+    if not office_exe:
+        return expanded
+
+    resolved = app_path_from_registry(office_exe)
+    if resolved:
+        return resolved
+
+    for base in (os.environ.get("ProgramFiles", ""), os.environ.get("ProgramFiles(x86)", "")):
+        if not base:
+            continue
+        candidate = Path(base) / "Microsoft Office" / "Office16" / office_exe.upper()
+        if candidate.exists():
+            return str(candidate)
+    return expanded
+
+
 def run_launch(action: dict[str, Any]) -> None:
     target = action.get("targetPath") or action.get("path")
     if not target:
@@ -82,7 +125,7 @@ def run_launch(action: dict[str, Any]) -> None:
 
     args = action.get("arguments") or ""
     cwd = action.get("workingDirectory") or None
-    target = os.path.expandvars(str(target))
+    target = resolve_launch_target(str(target))
 
     if args:
         subprocess.Popen([target, *shlex.split(str(args), posix=False)], cwd=cwd or None)
