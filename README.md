@@ -20,7 +20,7 @@ python -m pip install -r requirements.txt
 python app_icon_reporter.py
 ```
 
-預設會建立並自動開啟 `installed_apps_icons_report.html`，可直接在報表中勾選要放進 Macro Pad 的 APP：
+預設會建立並自動開啟 `installed_apps_icons_report.html`，可直接在報表中勾選要放進 Macro Pad 的 APP。新版 `installed_apps_icons.csv` 也會包含 `IconData` 欄位，所以在 GitHub Pages 的設定頁匯入 CSV 後，拖拉 APP 到陣列時也能顯示 icon：
 
 ```text
 installed-app-icons-report/
@@ -64,8 +64,8 @@ http://電腦IP:8080/config.html
 
 在設定頁中：
 
-- 匯入 `installed-app-icons-report/installed_apps_icons.csv`
-- 若要讓 GitHub Pages 與手機 PWA 也顯示 APP icon，建議匯入 `installed_apps_icons_report.html`；設定頁會使用報表中的內嵌 icon
+- 匯入 `installed-app-icons-report/installed_apps_icons.csv` 或 `installed_apps_icons_report.html`
+- 若使用舊版 CSV 沒看到 icon，請重新執行 `python app_icon_reporter.py` 產生含 `IconData` 欄位的新版 CSV
 - 把 APP 從左側清單拖到 4x8 方格
 - 拖入方格後會在陣列中顯示該 APP 的 icon 圖樣
 - 設定頁面名稱，例如「啟動應用程式」、「多媒體操控」、「巨集鍵盤指令」
