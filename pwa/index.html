@@ -1,1 +1,53 @@
-@pwa/index.html
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101216">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>Phone Macro Pad</title>
+</head>
+<body>
+  <main class="phone">
+    <section id="settingsPage" class="settings">
+      <h1>Macro Pad</h1>
+      <p>連線後會由電腦端 Python runtime 傳送控制頁面。</p>
+      <div class="form">
+        <label>MQTT WebSocket URL
+          <input id="mqttUrl" value="wss://broker.emqx.io:8084/mqtt">
+        </label>
+        <label>Client ID
+          <input id="clientId">
+        </label>
+        <label>Username
+          <input id="username" autocomplete="username">
+        </label>
+        <label>Password
+          <input id="password" type="password" autocomplete="current-password">
+        </label>
+        <label>Base Topic
+          <input id="baseTopic" value="macro-pad">
+        </label>
+        <button id="connectButton">連線</button>
+      </div>
+      <div id="status" class="status">尚未連線</div>
+    </section>
+
+    <section id="deckPage" class="deck hidden">
+      <header class="deck-header">
+        <button id="settingsButton" aria-label="設定">⚙</button>
+        <div>
+          <div id="pageTitle" class="page-title">控制頁</div>
+          <div id="connectionState" class="connection">離線</div>
+        </div>
+      </header>
+      <div id="grid" class="grid"></div>
+      <nav id="pageNav" class="page-nav"></nav>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
