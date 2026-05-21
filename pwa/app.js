@@ -10,6 +10,7 @@ let settings = JSON.parse(localStorage.getItem('macroPadMqtt') || JSON.stringify
 let layout = JSON.parse(localStorage.getItem('macroPadLayout') || 'null');
 let client = null;
 let pageIndex = 0;
+let deferredInstallPrompt = null;
 
 const els = {
   settingsPage: document.getElementById('settingsPage'),
@@ -20,6 +21,7 @@ const els = {
   password: document.getElementById('password'),
   baseTopic: document.getElementById('baseTopic'),
   connectButton: document.getElementById('connectButton'),
+  installButton: document.getElementById('installButton'),
   settingsButton: document.getElementById('settingsButton'),
   status: document.getElementById('status'),
   connectionState: document.getElementById('connectionState'),
@@ -45,6 +47,37 @@ function readSettings() {
     baseTopic: els.baseTopic.value.trim() || 'macro-pad'
   };
   localStorage.setItem('macroPadMqtt', JSON.stringify(settings));
+}
+
+function isStandalonePwa() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function refreshInstallButton() {
+  if (!els.installButton) return;
+  if (isStandalonePwa()) {
+    els.installButton.textContent = '已加入主畫面';
+    els.installButton.disabled = true;
+  } else {
+    els.installButton.textContent = '加入主畫面';
+    els.installButton.disabled = false;
+  }
+}
+
+async function installPwa() {
+  if (isStandalonePwa()) {
+    setStatus('已經以 PWA 模式開啟。');
+    refreshInstallButton();
+    return;
+  }
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    refreshInstallButton();
+    return;
+  }
+  setStatus('請使用瀏覽器選單的「加入主畫面」或「安裝應用程式」。');
 }
 
 function connect() {
@@ -186,9 +219,23 @@ function escapeHtml(value) {
 }
 
 els.connectButton.addEventListener('click', connect);
+els.installButton.addEventListener('click', installPwa);
 els.settingsButton.addEventListener('click', showSettings);
 
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  refreshInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  refreshInstallButton();
+  setStatus('已加入主畫面。');
+});
+
 fillSettings();
+refreshInstallButton();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
