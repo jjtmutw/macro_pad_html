@@ -39,7 +39,7 @@
 
     .app {
       display: grid;
-      grid-template-columns: 320px minmax(520px, 1fr) 340px;
+      grid-template-columns: 320px minmax(460px, 1fr) 340px;
       min-height: 100vh;
     }
     .sidebar, .inspector {
@@ -102,7 +102,7 @@
     }
     .page-tabs button.active { background: #f8fafc; color: #0f172a; border-color: #f8fafc; }
     .deck-shell {
-      width: min(100%, 620px);
+      width: min(100%, 520px);
       margin: 0 auto;
       border: 1px solid #303846;
       background: #151922;
@@ -175,7 +175,7 @@
     <aside class="sidebar">
       <div class="title">
         <h1>電腦設定頁</h1>
-        <p>拖拉 APP 到 4x8 版面，完成後輸出 layout JSON。</p>
+        <p>拖拉 APP 到 3x8 版面，完成後輸出 layout JSON。</p>
       </div>
 
       <div class="section-title">資料</div>
@@ -203,7 +203,7 @@
       <div class="topbar">
         <div class="title">
           <h1 id="currentPageTitle">啟動應用程式</h1>
-          <p>每頁 32 格，手機 PWA 會依照這份 layout 顯示。</p>
+          <p>每頁 24 格，手機 PWA 會依照這份 layout 顯示。</p>
         </div>
         <div class="row" style="max-width:260px">
           <button id="addPage">新增頁面</button>
@@ -214,7 +214,7 @@
       <section class="deck-shell">
         <div class="deck-title">
           <strong id="deckName">啟動應用程式</strong>
-          <span class="hint">4 x 8</span>
+          <span id="gridSizeText" class="hint">3 x 8</span>
         </div>
         <div id="grid" class="grid"></div>
       </section>
@@ -231,8 +231,8 @@
         </label>
         <label>顯示方向
           <select id="orientationInput">
-            <option value="portrait">直立式 4 x 8</option>
-            <option value="landscape">橫式 8 x 4</option>
+            <option value="portrait">直立式 3 x 8</option>
+            <option value="landscape">橫式 8 x 3</option>
           </select>
         </label>
         <label>陣列背景圖片 URL / 路徑
@@ -280,7 +280,7 @@
     const emptyLayout = {
       version: 1,
       deviceName: 'Phone Stream Deck',
-      grid: { columns: 4, rows: 8 },
+      grid: { columns: 3, rows: 8 },
       display: { orientation: 'portrait', backgroundImage: '' },
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
       pages: [
@@ -324,7 +324,7 @@
       layout.display ||= { orientation: 'portrait', backgroundImage: '' };
       return layout.display;
     }
-    function maxSlots() { return (layout.grid.columns || 4) * (layout.grid.rows || 8); }
+    function maxSlots() { return (layout.grid.columns || 3) * (layout.grid.rows || 8); }
     function buttonAt(slot) { return page().buttons.find(button => Number(button.slot) === Number(slot)); }
     function setButton(slot, nextButton) {
       page().buttons = page().buttons.filter(button => Number(button.slot) !== Number(slot));
@@ -350,7 +350,7 @@
     function renderGrid() {
       gridEl.innerHTML = '';
       applyDisplaySettings();
-      gridEl.style.gridTemplateColumns = `repeat(${layout.grid.columns || 4}, minmax(0, 1fr))`;
+      gridEl.style.gridTemplateColumns = `repeat(${layout.grid.columns || 3}, minmax(0, 1fr))`;
       for (let slot = 0; slot < maxSlots(); slot++) {
         const button = buttonAt(slot);
         const cell = document.createElement('button');
@@ -390,6 +390,7 @@
       document.getElementById('selectedSlotText').textContent = `第 ${selectedSlot + 1} 格`;
       document.getElementById('currentPageTitle').textContent = page().title;
       document.getElementById('deckName').textContent = page().title;
+      document.getElementById('gridSizeText').textContent = `${layout.grid.columns || 3} x ${layout.grid.rows || 8}`;
       inputs.pageTitle.value = page().title || '';
       inputs.orientation.value = display().orientation || 'portrait';
       inputs.background.value = display().backgroundImage || '';
@@ -629,15 +630,15 @@
       display().orientation = orientation;
       display().backgroundImage = toBackgroundUrl(inputs.background.value.trim());
       layout.grid = orientation === 'landscape'
-        ? { columns: 8, rows: 4 }
-        : { columns: 4, rows: 8 };
+        ? { columns: 8, rows: 3 }
+        : { columns: 3, rows: 8 };
     }
 
     function applyDisplaySettings() {
       const orientation = display().orientation || 'portrait';
       layout.grid = orientation === 'landscape'
-        ? { columns: 8, rows: 4 }
-        : { columns: 4, rows: 8 };
+        ? { columns: 8, rows: 3 }
+        : { columns: 3, rows: 8 };
       deckShellEl.classList.toggle('landscape', orientation === 'landscape');
       const bg = display().backgroundImage || '';
       deckShellEl.style.setProperty('--deck-bg-image', bg ? `url("${bg.replaceAll('"', '\\"')}")` : 'none');
