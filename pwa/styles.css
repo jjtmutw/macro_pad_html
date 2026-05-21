@@ -51,6 +51,13 @@ button {
   padding: 0 14px;
 }
 #connectButton { background: #1677ff; border-color: #1677ff; font-weight: 800; }
+#installButton {
+  background: #f8fafc;
+  border-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 800;
+}
+#installButton:disabled { opacity: .7; }
 .status, .connection { color: #8d99a8; font-size: 13px; min-height: 18px; }
 
 .deck {
