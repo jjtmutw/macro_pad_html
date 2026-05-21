@@ -436,6 +436,55 @@ def resolve_icon_source(icon_location: str, target_path: str, shortcut_path: str
     return shortcut_path
 
 
+OFFICE_ICON_TARGETS = {
+    "wordicon.exe": "winword.exe",
+    "xlicons.exe": "excel.exe",
+    "pptico.exe": "powerpnt.exe",
+}
+
+
+def app_path_from_registry(exe_name: str) -> str:
+    try:
+        import winreg
+    except ImportError:
+        return ""
+
+    subkeys = (
+        fr"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}",
+        fr"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}",
+    )
+    for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        for subkey in subkeys:
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    value, _ = winreg.QueryValueEx(key, "")
+                    if value:
+                        return os.path.expandvars(str(value))
+            except OSError:
+                continue
+    return ""
+
+
+def resolve_launch_target(target_path: str) -> str:
+    target = os.path.expandvars(str(target_path or ""))
+    office_exe = OFFICE_ICON_TARGETS.get(Path(target).name.casefold())
+    if not office_exe:
+        return target
+
+    resolved = app_path_from_registry(office_exe)
+    if resolved:
+        return resolved
+
+    for env_name in ("ProgramFiles", "ProgramFiles(x86)"):
+        base = os.environ.get(env_name, "")
+        if not base:
+            continue
+        candidate = Path(base) / "Microsoft Office" / "Office16" / office_exe.upper()
+        if candidate.exists():
+            return str(candidate)
+    return target
+
+
 def safe_icon_file_name(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", errors="ignore")).hexdigest()[:16] + ".png"
 
@@ -473,6 +522,7 @@ def collect_shortcuts(output_dir: Path, include_url_shortcuts: bool) -> list[dic
                         arguments = str(link.Arguments or "")
                         working_directory = str(link.WorkingDirectory or "")
                         icon_location = str(link.IconLocation or "")
+                        target_path = resolve_launch_target(target_path)
                     else:
                         target_path = read_url_shortcut(shortcut)
 
