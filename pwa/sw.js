@@ -1,4 +1,4 @@
-const CACHE = 'phone-macro-pad-v2';
+const CACHE = 'phone-macro-pad-v3';
 const ASSETS = [
   './',
   './index.html',
