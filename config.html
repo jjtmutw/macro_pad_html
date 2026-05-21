@@ -528,7 +528,10 @@
       const file = event.target.files[0];
       if (!file) return;
       apps = parseCsv(await file.text()).map(normalizeApp);
-      statusEl.textContent = `已載入 ${apps.length} 個 APP。`;
+      const withIcons = apps.filter(app => app.IconData || app.IconUrl).length;
+      statusEl.textContent = withIcons
+        ? `已載入 ${apps.length} 個 APP，其中 ${withIcons} 個含 icon。`
+        : `已載入 ${apps.length} 個 APP，但這份 CSV 沒有 IconData。請重新執行 app_icon_reporter.py 產生新版 CSV，或改匯入 HTML 報表。`;
       renderApps();
     });
 
