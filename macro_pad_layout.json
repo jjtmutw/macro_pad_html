@@ -465,36 +465,32 @@
           }
         },
         {
-          "id": "media-mute",
+          "id": "volume-rotary",
           "slot": 3,
+          "spanColumns": 3,
+          "spanRows": 3,
+          "label": "音量旋鈕",
+          "icon": "🔊",
+          "color": "#26313d",
+          "value": 50,
+          "action": {
+            "type": "rotary",
+            "command": "volume",
+            "upCommand": "volume_up",
+            "downCommand": "volume_down",
+            "muteCommand": "mute",
+            "stepSize": 4
+          }
+        },
+        {
+          "id": "media-mute",
+          "slot": 15,
           "label": "靜音",
           "icon": "🔇",
           "color": "#111827",
           "action": {
             "type": "media",
             "command": "mute"
-          }
-        },
-        {
-          "id": "volume-down",
-          "slot": 4,
-          "label": "音量 -",
-          "icon": "🔉",
-          "color": "#2563eb",
-          "action": {
-            "type": "media",
-            "command": "volume_down"
-          }
-        },
-        {
-          "id": "volume-up",
-          "slot": 5,
-          "label": "音量 +",
-          "icon": "🔊",
-          "color": "#2563eb",
-          "action": {
-            "type": "media",
-            "command": "volume_up"
           }
         }
       ]
