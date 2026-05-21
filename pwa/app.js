@@ -27,7 +27,6 @@ const els = {
   settingsButton: document.getElementById('settingsButton'),
   status: document.getElementById('status'),
   connectionState: document.getElementById('connectionState'),
-  pageTitle: document.getElementById('pageTitle'),
   grid: document.getElementById('grid'),
   pageNav: document.getElementById('pageNav')
 };
@@ -173,7 +172,6 @@ function render() {
   const rows = layout.grid?.rows || 8;
   els.grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   els.grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
-  els.pageTitle.textContent = page.title || '控制頁';
   document.documentElement.style.setProperty('--accent', layout.theme?.accent || '#4cc9f0');
   applyDisplaySettings();
   els.grid.innerHTML = '';
