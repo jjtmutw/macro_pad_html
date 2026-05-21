@@ -53,14 +53,32 @@ def load_layout(path: Path) -> dict[str, Any]:
 def normalize_action(payload: dict[str, Any]) -> dict[str, Any]:
     action = payload.get("action")
     if isinstance(action, dict):
-        return action
-    return payload
+        normalized = dict(action)
+    else:
+        normalized = dict(payload)
+
+    for key in ("targetPath", "path", "arguments", "workingDirectory", "command", "keys", "text"):
+        if not normalized.get(key) and payload.get(key):
+            normalized[key] = payload[key]
+    for key in ("id", "label", "page", "slot"):
+        if payload.get(key) is not None:
+            normalized[f"_{key}"] = payload[key]
+    return normalized
+
+
+def action_context(action: dict[str, Any]) -> str:
+    details = []
+    for label, key in (("label", "_label"), ("page", "_page"), ("slot", "_slot"), ("id", "_id")):
+        value = action.get(key)
+        if value not in (None, ""):
+            details.append(f"{label}={value!r}")
+    return f" ({', '.join(details)})" if details else ""
 
 
 def run_launch(action: dict[str, Any]) -> None:
     target = action.get("targetPath") or action.get("path")
     if not target:
-        raise ValueError("launch action missing targetPath")
+        raise ValueError(f"launch action missing targetPath{action_context(action)}")
 
     args = action.get("arguments") or ""
     cwd = action.get("workingDirectory") or None
@@ -195,7 +213,7 @@ def main() -> int:
             action = normalize_action(payload)
             execute_action(action, allow_shell=args.allow_shell)
             client.publish(status_topic, json.dumps({"ok": True, "id": payload.get("id")}), qos=0)
-            print(f"Executed: {action.get('type')} {payload.get('label', '')}")
+            print(f"Executed: {action.get('type')} {action.get('_label') or payload.get('label', '')}")
         except Exception as exc:
             error = {"ok": False, "error": str(exc)}
             client.publish(status_topic, json.dumps(error, ensure_ascii=False), qos=0)
