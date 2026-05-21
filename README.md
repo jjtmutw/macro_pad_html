@@ -43,7 +43,7 @@ https://jjtmutw.github.io/macro_pad_html/pwa/
 手機 PWA 從 GitHub Pages 開啟時，MQTT 必須使用安全 WebSocket：
 
 ```text
-wss://你的Broker網域:連接埠
+wss://broker.emqx.io:8084/mqtt
 ```
 
 瀏覽器通常會阻擋 HTTPS 網頁連到 `ws://`。若只是區網測試，可改用本機 HTTP 開發模式；若要推廣給一般使用者，建議架設支援 TLS 的 MQTT WebSocket broker。
@@ -106,10 +106,10 @@ python macro_pad_runtime.py --mqtt-host 127.0.0.1 --base-topic macro-pad --no-ht
 
 ## MQTT Broker 注意事項
 
-手機瀏覽器不能直接連一般 TCP MQTT `1883`，必須使用 MQTT over WebSocket，例如：
+手機瀏覽器不能直接連一般 TCP MQTT `1883`，必須使用 MQTT over WebSocket。GitHub Pages 版本預設使用：
 
 ```text
-ws://電腦IP:9001
+wss://broker.emqx.io:8084/mqtt
 ```
 
 如果使用 Mosquitto，可以開一個 WebSocket listener，概念如下：
