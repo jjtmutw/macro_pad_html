@@ -6,8 +6,7 @@
     "rows": 3
   },
   "display": {
-    "orientation": "landscape",
-    "backgroundImage": ""
+    "orientation": "landscape"
   },
   "theme": {
     "background": "#101216",
