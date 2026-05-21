@@ -656,12 +656,15 @@ def write_csv(items: list[dict[str, str]], csv_path: Path) -> None:
         "WorkingDirectory",
         "IconSource",
         "IconPng",
+        "IconData",
     ]
     with csv_path.open("w", newline="", encoding="utf-8-sig") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for item in items:
-            writer.writerow({key: item.get(key, "") for key in fieldnames})
+            row = {key: item.get(key, "") for key in fieldnames}
+            row["IconData"] = icon_data_url(item.get("IconPng", ""))
+            writer.writerow(row)
 
 
 def icon_data_url(icon_path: str) -> str:
@@ -821,7 +824,7 @@ function csvEscape(value) {{
 }}
 
 function buildCsv(items) {{
-  const headers = ['AppName','TargetPath','Arguments','ShortcutPath','WorkingDirectory','IconSource','IconFileName','OriginalIconPng'];
+  const headers = ['AppName','TargetPath','Arguments','ShortcutPath','WorkingDirectory','IconSource','IconFileName','OriginalIconPng','IconData'];
   const lines = [headers.map(csvEscape).join(',')];
   for (const item of items) {{
     lines.push([
@@ -832,7 +835,8 @@ function buildCsv(items) {{
       item.workingDirectory,
       item.iconSource,
       item.iconFileName,
-      item.iconPng
+      item.iconPng,
+      item.iconData
     ].map(csvEscape).join(','));
   }}
   return '\\uFEFF' + lines.join('\\r\\n');
