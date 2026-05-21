@@ -1,6 +1,6 @@
 # Phone Macro Pad PWA
 
-這個專案把手機螢幕變成類似 Stream Deck 的 4x8 PWA 控制面板。整體分成三個部分：
+這個專案把手機螢幕變成類似 Stream Deck 的 3x8 PWA 控制面板。整體分成三個部分：
 
 1. `config.html`：電腦端一次性拖拉設定頁，負責把 APP、媒體鍵、巨集鍵安排到 layout。
 2. `pwa/`：手機上的 PWA，透過 MQTT WebSocket 收到 layout 後顯示控制方塊，按下方塊後送出 action。可由 GitHub Pages 直接開啟。
@@ -48,7 +48,7 @@ wss://broker.emqx.io:8084/mqtt
 
 瀏覽器通常會阻擋 HTTPS 網頁連到 `ws://`。若只是區網測試，可改用本機 HTTP 開發模式；若要推廣給一般使用者，建議架設支援 TLS 的 MQTT WebSocket broker。
 
-## 編輯 4x8 控制頁
+## 編輯 3x8 控制頁
 
 若使用 GitHub Pages，可直接開啟公開設定頁。若要用本機模式，也可以啟動 Python runtime 後，用電腦瀏覽器打開設定頁：
 
@@ -66,10 +66,10 @@ http://電腦IP:8080/config.html
 
 - 匯入 `installed-app-icons-report/installed_apps_icons.csv` 或 `installed_apps_icons_report.html`
 - 若使用舊版 CSV 沒看到 icon，請重新執行 `python app_icon_reporter.py` 產生含 `IconData` 欄位的新版 CSV
-- 把 APP 從左側清單拖到 4x8 方格
+- 把 APP 從左側清單拖到 3x8 方格
 - 拖入方格後會在陣列中顯示該 APP 的 icon 圖樣
 - 設定頁面名稱，例如「啟動應用程式」、「多媒體操控」、「巨集鍵盤指令」
-- 選擇直立式 `4 x 8` 或橫式 `8 x 4`
+- 選擇直立式 `3 x 8` 或橫式 `8 x 3`
 - 可貼上背景圖片 URL / 路徑，或直接選擇圖片檔讓設定頁內嵌到 layout
 - 按「儲存 / 匯出 layout JSON」
 - 將輸出的檔案存成專案根目錄的 `macro_pad_layout.json`
