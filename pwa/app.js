@@ -11,6 +11,7 @@ let layout = JSON.parse(localStorage.getItem('macroPadLayout') || 'null');
 let client = null;
 let pageIndex = 0;
 let deferredInstallPrompt = null;
+let fullscreenAttemptArmed = false;
 
 const els = {
   settingsPage: document.getElementById('settingsPage'),
@@ -53,6 +54,25 @@ function isStandalonePwa() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+async function enterFullscreen() {
+  if (!isStandalonePwa() || document.fullscreenElement) return;
+  const root = document.documentElement;
+  if (!root.requestFullscreen) return;
+  try {
+    await root.requestFullscreen({ navigationUI: 'hide' });
+  } catch {
+    // Some browsers only allow this from a direct user gesture.
+  }
+}
+
+function armStandaloneFullscreen() {
+  if (!isStandalonePwa() || fullscreenAttemptArmed) return;
+  fullscreenAttemptArmed = true;
+  const run = () => enterFullscreen();
+  window.addEventListener('pointerdown', run, { once: true, passive: true });
+  window.addEventListener('keydown', run, { once: true });
+}
+
 function refreshInstallButton() {
   if (!els.installButton) return;
   if (isStandalonePwa()) {
@@ -68,6 +88,7 @@ async function installPwa() {
   if (isStandalonePwa()) {
     setStatus('已經以 PWA 模式開啟。');
     refreshInstallButton();
+    enterFullscreen();
     return;
   }
   if (deferredInstallPrompt) {
@@ -81,6 +102,7 @@ async function installPwa() {
 }
 
 function connect() {
+  enterFullscreen();
   readSettings();
   if (!window.mqtt) {
     setStatus('找不到 MQTT WebSocket 函式庫，請確認手機可連網載入 mqtt.js。');
@@ -135,6 +157,7 @@ function connect() {
 function showDeck() {
   els.settingsPage.classList.add('hidden');
   els.deckPage.classList.remove('hidden');
+  enterFullscreen();
 }
 
 function showSettings() {
@@ -236,6 +259,7 @@ window.addEventListener('appinstalled', () => {
 
 fillSettings();
 refreshInstallButton();
+armStandaloneFullscreen();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
