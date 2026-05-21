@@ -117,6 +117,7 @@ function render() {
   els.grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   els.pageTitle.textContent = page.title || '控制頁';
   document.documentElement.style.setProperty('--accent', layout.theme?.accent || '#4cc9f0');
+  applyDisplaySettings();
   els.grid.innerHTML = '';
 
   for (let slot = 0; slot < columns * rows; slot++) {
@@ -141,6 +142,13 @@ function render() {
     });
     els.pageNav.appendChild(tab);
   });
+}
+
+function applyDisplaySettings() {
+  const orientation = layout.display?.orientation || (layout.grid?.columns > layout.grid?.rows ? 'landscape' : 'portrait');
+  els.deckPage.classList.toggle('landscape', orientation === 'landscape');
+  const backgroundImage = layout.display?.backgroundImage || '';
+  els.deckPage.style.setProperty('--deck-bg-image', backgroundImage ? `url("${backgroundImage.replaceAll('"', '\\"')}")` : 'none');
 }
 
 function renderButton(button) {
