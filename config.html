@@ -245,6 +245,7 @@
           <select id="actionType">
             <option value="launch">啟動應用程式</option>
             <option value="media">多媒體控制</option>
+            <option value="rotary">旋鈕控制</option>
             <option value="hotkey">鍵盤快捷鍵</option>
             <option value="text">輸入文字</option>
           </select>
@@ -276,7 +277,70 @@
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
       pages: [
         { id: 'apps', title: '啟動應用程式', buttons: [] },
-        { id: 'media', title: '多媒體操控', buttons: [] },
+        { id: 'media', title: '多媒體操控', buttons: [
+                  {
+                            "id": "media-prev",
+                            "slot": 0,
+                            "label": "上一首",
+                            "icon": "⏮",
+                            "color": "#ef4444",
+                            "action": {
+                                      "type": "media",
+                                      "command": "previous"
+                            }
+                  },
+                  {
+                            "id": "media-play",
+                            "slot": 1,
+                            "label": "播放/暫停",
+                            "icon": "⏯",
+                            "color": "#ef4444",
+                            "action": {
+                                      "type": "media",
+                                      "command": "play_pause"
+                            }
+                  },
+                  {
+                            "id": "media-next",
+                            "slot": 2,
+                            "label": "下一首",
+                            "icon": "⏭",
+                            "color": "#ef4444",
+                            "action": {
+                                      "type": "media",
+                                      "command": "next"
+                            }
+                  },
+                  {
+                            "id": "volume-rotary",
+                            "slot": 3,
+                            "spanColumns": 3,
+                            "spanRows": 3,
+                            "label": "音量旋鈕",
+                            "icon": "🔊",
+                            "color": "#26313d",
+                            "value": 50,
+                            "action": {
+                                      "type": "rotary",
+                                      "command": "volume",
+                                      "upCommand": "volume_up",
+                                      "downCommand": "volume_down",
+                                      "muteCommand": "mute",
+                                      "stepSize": 4
+                            }
+                  },
+                  {
+                            "id": "media-mute",
+                            "slot": 15,
+                            "label": "靜音",
+                            "icon": "🔇",
+                            "color": "#111827",
+                            "action": {
+                                      "type": "media",
+                                      "command": "mute"
+                            }
+                  }
+        ] },
         { id: 'macros', title: '巨集鍵盤指令', buttons: [
                   {
                             "id": "macro-copy",
@@ -623,10 +687,13 @@
       applyDisplaySettings();
       gridEl.style.gridTemplateColumns = `repeat(${layout.grid.columns || 3}, minmax(0, 1fr))`;
       for (let slot = 0; slot < maxSlots(); slot++) {
+        if (isCoveredSlot(page().buttons || [], slot, layout.grid.columns || 3)) continue;
         const button = buttonAt(slot);
         const cell = document.createElement('button');
-        cell.className = `cell ${button ? '' : 'empty'} ${slot === selectedSlot ? 'selected' : ''}`;
+        cell.className = `cell ${button?.action?.type === 'rotary' ? 'rotary-preview' : ''} ${button ? '' : 'empty'} ${slot === selectedSlot ? 'selected' : ''}`;
         cell.dataset.slot = String(slot);
+        if (button?.spanColumns) cell.style.gridColumn = `span ${button.spanColumns}`;
+        if (button?.spanRows) cell.style.gridRow = `span ${button.spanRows}`;
         cell.innerHTML = renderButtonContent(button, slot);
         cell.addEventListener('click', () => {
           selectedSlot = slot;
@@ -649,9 +716,30 @@
       }
     }
 
+    function isCoveredSlot(buttons, slot, columns) {
+      return buttons.some(button => {
+        const origin = Number(button.slot);
+        const spanColumns = Number(button.spanColumns || 1);
+        const spanRows = Number(button.spanRows || 1);
+        if (spanColumns <= 1 && spanRows <= 1) return false;
+        const originColumn = origin % columns;
+        const originRow = Math.floor(origin / columns);
+        const column = slot % columns;
+        const row = Math.floor(slot / columns);
+        return slot !== origin
+          && row >= originRow
+          && row < originRow + spanRows
+          && column >= originColumn
+          && column < originColumn + spanColumns;
+      });
+    }
+
     function renderButtonContent(button, slot) {
       if (!button) return `<span class="slot">${slot + 1}</span><span>+</span>`;
       const bg = button.color || '#2563eb';
+      if (button.action?.type === 'rotary') {
+        return `<span class="slot">${slot + 1}</span><div style="background:${bg};position:absolute;inset:0;opacity:.72"></div><div style="position:relative;display:grid;place-items:center;gap:8px"><div class="glyph">◉</div><div class="label">${escapeHtml(button.label || '')}<br>3 x 3</div></div>`;
+      }
       const image = button.iconUrl ? `<img class="button-icon" src="${escapeHtml(resolvePreviewIconUrl(button.iconUrl))}" alt="">` : `<div class="glyph">${escapeHtml(button.icon || '')}</div>`;
       return `<span class="slot">${slot + 1}</span><div style="background:${bg};position:absolute;inset:0;opacity:.72"></div><div style="position:relative">${image}<div class="label">${escapeHtml(button.label || '')}</div></div>`;
     }
@@ -669,7 +757,7 @@
       inputs.color.value = current?.color || '#2563eb';
       inputs.type.value = current?.action?.type || 'launch';
       inputs.target.value = current?.action?.targetPath || current?.action?.path || current?.action?.text || '';
-      inputs.args.value = current?.action?.arguments || current?.action?.keys?.join(',') || current?.action?.command || '';
+      inputs.args.value = current?.action?.arguments || current?.action?.keys?.join(',') || current?.action?.stepSize || current?.action?.command || '';
       inputs.cwd.value = current?.action?.workingDirectory || '';
     }
 
@@ -718,6 +806,14 @@
     function buildAction() {
       const type = inputs.type.value;
       if (type === 'media') return { type, command: inputs.args.value.trim() || 'play_pause' };
+      if (type === 'rotary') return {
+        type,
+        command: 'volume',
+        upCommand: 'volume_up',
+        downCommand: 'volume_down',
+        muteCommand: 'mute',
+        stepSize: Number(inputs.args.value.trim()) || 4
+      };
       if (type === 'hotkey') return { type, keys: inputs.args.value.split(',').map(item => item.trim()).filter(Boolean) };
       if (type === 'text') return { type, text: inputs.target.value };
       return {
