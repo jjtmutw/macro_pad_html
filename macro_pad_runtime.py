@@ -118,6 +118,19 @@ def resolve_launch_target(target: str) -> str:
     return expanded
 
 
+def run_as_admin(target: str, args: str, cwd: str | None) -> None:
+    result = ctypes.windll.shell32.ShellExecuteW(
+        None,
+        "runas",
+        target,
+        str(args or None),
+        cwd or None,
+        1,
+    )
+    if result <= 32:
+        raise OSError(f"administrator launch failed with ShellExecute code {result}")
+
+
 def run_launch(action: dict[str, Any]) -> None:
     target = action.get("targetPath") or action.get("path")
     if not target:
@@ -127,10 +140,15 @@ def run_launch(action: dict[str, Any]) -> None:
     cwd = action.get("workingDirectory") or None
     target = resolve_launch_target(str(target))
 
-    if args:
-        subprocess.Popen([target, *shlex.split(str(args), posix=False)], cwd=cwd or None)
-    else:
-        os.startfile(target)  # type: ignore[attr-defined]
+    try:
+        if args:
+            subprocess.Popen([target, *shlex.split(str(args), posix=False)], cwd=cwd or None)
+        else:
+            os.startfile(target)  # type: ignore[attr-defined]
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != 740:
+            raise
+        run_as_admin(target, str(args or ""), cwd)
 
 
 def run_media(action: dict[str, Any]) -> None:
