@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 build/
 installed-app-icons-report/
+selected-apps-output/
+runtime_test_output.txt
+runtime_test_error.txt

@@ -14,12 +14,14 @@ import argparse
 import ctypes
 import json
 import os
+import platform
 import shlex
 import ssl
 import subprocess
 import sys
 import threading
 import time
+import uuid
 import winreg
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -319,6 +321,13 @@ def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
     return server
 
 
+def default_client_id() -> str:
+    host = platform.node().strip().lower() or "pc"
+    safe_host = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in host)[:24].strip("-") or "pc"
+    suffix = uuid.uuid4().hex[:8]
+    return f"macro-pad-{safe_host}-{suffix}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the PC-side macro pad MQTT bridge.")
     parser.add_argument("--layout", type=Path, default=DEFAULT_LAYOUT)
@@ -330,7 +339,7 @@ def main() -> int:
     parser.add_argument("--mqtt-user", default="")
     parser.add_argument("--mqtt-password", default="")
     parser.add_argument("--base-topic", default="macro-pad")
-    parser.add_argument("--client-id", default="macro-pad-pc-runtime")
+    parser.add_argument("--client-id", default=default_client_id())
     parser.add_argument("--http-host", default="0.0.0.0")
     parser.add_argument("--http-port", type=int, default=8080)
     parser.add_argument("--no-http", action="store_true", help="Disable the optional local static web server.")
