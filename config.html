@@ -283,7 +283,7 @@
                             "slot": 0,
                             "label": "上一首",
                             "icon": "⏮",
-                            "color": "#ef4444",
+                            "color": "#22c55e",
                             "action": {
                                       "type": "media",
                                       "command": "previous"
@@ -294,7 +294,7 @@
                             "slot": 1,
                             "label": "播放/暫停",
                             "icon": "⏯",
-                            "color": "#ef4444",
+                            "color": "#22c55e",
                             "action": {
                                       "type": "media",
                                       "command": "play_pause"
@@ -305,7 +305,7 @@
                             "slot": 2,
                             "label": "下一首",
                             "icon": "⏭",
-                            "color": "#ef4444",
+                            "color": "#22c55e",
                             "action": {
                                       "type": "media",
                                       "command": "next"
@@ -318,7 +318,7 @@
                             "spanRows": 3,
                             "label": "音量旋鈕",
                             "icon": "🔊",
-                            "color": "#26313d",
+                            "color": "#14532d",
                             "value": 50,
                             "action": {
                                       "type": "rotary",
@@ -816,13 +816,18 @@
     document.getElementById('applyButton').addEventListener('click', () => {
       page().title = inputs.pageTitle.value.trim() || page().title;
       updateDisplaySettings();
+      const defaultColor = inputs.type.value === 'media'
+        ? '#22c55e'
+        : inputs.type.value === 'rotary'
+          ? '#14532d'
+          : inputs.color.value;
       setButton(selectedSlot, {
         id: buttonAt(selectedSlot)?.id || `button-${Date.now()}-${selectedSlot}`,
         slot: selectedSlot,
         label: inputs.label.value.trim() || `按鈕 ${selectedSlot + 1}`,
         icon: inputs.icon.value.trim(),
         iconUrl: buttonAt(selectedSlot)?.iconUrl || '',
-        color: inputs.color.value,
+        color: defaultColor,
         action: buildAction()
       });
       saveLocal('已套用設定。');
