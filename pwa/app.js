@@ -25,6 +25,19 @@ let fullscreenAttemptArmed = false;
 let manifestObjectUrl = null;
 const rotaryStates = new Map();
 
+const pageTitleById = {
+  apps: '??????',
+  media: '?????',
+  macros: '??????'
+};
+
+const buttonLabelById = {
+  'media-prev': '???',
+  'media-play': '??/??',
+  'media-next': '???',
+  'volume-rotary': '????'
+};
+
 const els = {
   settingsPage: document.getElementById('settingsPage'),
   deckPage: document.getElementById('deckPage'),
@@ -132,10 +145,10 @@ function armStandaloneFullscreen() {
 function refreshInstallButton() {
   if (!els.installButton) return;
   if (isStandalonePwa()) {
-    els.installButton.textContent = '已加入主畫面';
+    els.installButton.textContent = '??????';
     els.installButton.disabled = true;
   } else {
-    els.installButton.textContent = '加入主畫面';
+    els.installButton.textContent = '?????';
     els.installButton.disabled = false;
   }
 }
@@ -144,7 +157,7 @@ async function installPwa() {
   readSettings();
   updateManifestLink();
   if (isStandalonePwa()) {
-    setStatus('已經以 PWA 模式開啟。');
+    setStatus('??? PWA ?????');
     refreshInstallButton();
     enterFullscreen();
     return;
@@ -156,19 +169,19 @@ async function installPwa() {
     refreshInstallButton();
     return;
   }
-  setStatus('請使用瀏覽器選單的「加入主畫面」或「安裝應用程式」。');
+  setStatus('??????????????????????????');
 }
 
 function connect() {
   enterFullscreen();
   readSettings();
   if (!window.mqtt) {
-    setStatus('找不到 MQTT WebSocket 函式庫，請確認手機可連網載入 mqtt.js。');
+    setStatus('??? MQTT WebSocket ?????????????? mqtt.js?');
     return;
   }
   if (client) client.end(true);
 
-  setStatus('連線中...');
+  setStatus('???...');
   client = mqtt.connect(settings.mqttUrl, {
     clientId: settings.clientId,
     username: settings.username || undefined,
@@ -178,23 +191,23 @@ function connect() {
   });
 
   client.on('connect', () => {
-    setStatus('已連線，等待電腦傳送 layout。');
-    els.connectionState.textContent = '已連線';
+    setStatus('?????????? layout?');
+    els.connectionState.textContent = '???';
     client.subscribe(`${settings.baseTopic}/layout`, { qos: 1 });
     client.subscribe(`${settings.baseTopic}/status`, { qos: 0 });
     client.publish(`${settings.baseTopic}/hello`, JSON.stringify({ clientId: settings.clientId, at: Date.now() }));
   });
 
   client.on('reconnect', () => {
-    els.connectionState.textContent = '重新連線中';
+    els.connectionState.textContent = '?????';
   });
 
   client.on('close', () => {
-    els.connectionState.textContent = '離線';
+    els.connectionState.textContent = '??';
   });
 
   client.on('error', error => {
-    setStatus(`連線錯誤：${error.message || error}`);
+    setStatus(`?????${error.message || error}`);
   });
 
   client.on('message', (topic, payload) => {
@@ -204,10 +217,10 @@ function connect() {
       pageIndex = 0;
       showDeck();
       render();
-      setStatus('已收到 layout。');
+      setStatus('??? layout?');
     } else if (topic.endsWith('/status')) {
       const message = JSON.parse(payload.toString());
-      els.connectionState.textContent = message.ok ? '已執行' : '執行失敗';
+      els.connectionState.textContent = message.ok ? '???' : '????';
     }
   });
 }
@@ -255,7 +268,7 @@ function render() {
   els.pageNav.innerHTML = '';
   layout.pages.forEach((item, index) => {
     const tab = document.createElement('button');
-    tab.textContent = item.title || `頁面 ${index + 1}`;
+    tab.textContent = displayPageTitle(item, index);
     tab.className = index === pageIndex ? 'active' : '';
     tab.addEventListener('click', () => {
       pageIndex = index;
@@ -291,7 +304,7 @@ function applyDisplaySettings() {
 function renderButton(button) {
   if (button.action?.type === 'rotary') return renderRotary(button);
   const image = button.iconUrl ? `<img src="${escapeHtml(resolveIconUrl(button.iconUrl))}" alt="">` : `<div class="glyph">${escapeHtml(button.icon || '')}</div>`;
-  return `<span class="pad-inner">${image}<span class="label">${escapeHtml(button.label || '')}</span></span>`;
+  return `<span class="pad-inner">${image}<span class="label">${escapeHtml(displayButtonLabel(button))}</span></span>`;
 }
 
 function renderRotary(button) {
@@ -303,7 +316,7 @@ function renderRotary(button) {
   }).join('');
   return `
     <span class="rotary-inner ${state.power ? '' : 'off'}" style="--rotary-angle:${valueToRotation(state.value)}deg">
-      <span class="rotary-title">${escapeHtml(button.label || '音量')}</span>
+      <span class="rotary-title">${escapeHtml(displayButtonLabel(button) || '??')}</span>
       <span class="rotary-wrap">
         <span class="rotary-base"></span>
         <span class="rotary-segments">${segments}</span>
@@ -394,6 +407,24 @@ function resolveIconUrl(url) {
   return `../${url}`;
 }
 
+function displayPageTitle(page, index) {
+  return pageTitleById[page?.id] || cleanDisplayText(page?.title) || `?? ${index + 1}`;
+}
+
+function displayButtonLabel(button) {
+  return buttonLabelById[button?.id] || cleanDisplayText(button?.label);
+}
+
+function cleanDisplayText(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  return looksMojibake(text) ? '' : text;
+}
+
+function looksMojibake(text) {
+  return /[?]|[?-?]|[?-?]|[?-?]/.test(text);
+}
+
 function sendAction(button, actionOverride = null) {
   if (!button || !client?.connected) return;
   const payload = {
@@ -431,7 +462,7 @@ window.addEventListener('beforeinstallprompt', event => {
 window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
   refreshInstallButton();
-  setStatus('已加入主畫面。');
+  setStatus('???????');
 });
 
 applyUrlSettings();
