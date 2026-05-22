@@ -1,9 +1,11 @@
+const DEFAULT_BASE_TOPIC = 'jj/notebook1/macro_pad';
+
 const defaultSettings = {
   mqttUrl: 'wss://broker.emqx.io:8084/mqtt',
   clientId: `phone-macro-pad-${Math.random().toString(16).slice(2, 8)}`,
   username: '',
   password: '',
-  baseTopic: 'macro-pad'
+  baseTopic: DEFAULT_BASE_TOPIC
 };
 
 function readUrlSettings() {
@@ -19,6 +21,7 @@ let client = null;
 let pageIndex = 0;
 let deferredInstallPrompt = null;
 let fullscreenAttemptArmed = false;
+let manifestObjectUrl = null;
 const rotaryStates = new Map();
 
 const els = {
@@ -48,12 +51,40 @@ function applyUrlSettings() {
   localStorage.setItem('macroPadMqtt', JSON.stringify(settings));
 }
 
+function updateManifestLink() {
+  const topic = encodeURIComponent(settings.baseTopic || DEFAULT_BASE_TOPIC);
+  const manifest = {
+    name: 'Phone Macro Pad',
+    short_name: 'Macro Pad',
+    start_url: `./index.html?topic=${topic}`,
+    scope: './',
+    display: 'fullscreen',
+    background_color: '#101216',
+    theme_color: '#101216',
+    icons: [
+      {
+        src: './icon.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const nextUrl = URL.createObjectURL(blob);
+  const link = document.querySelector('link[rel="manifest"]');
+  if (link) link.href = nextUrl;
+  if (manifestObjectUrl) URL.revokeObjectURL(manifestObjectUrl);
+  manifestObjectUrl = nextUrl;
+}
+
 function fillSettings() {
   els.mqttUrl.value = settings.mqttUrl;
   els.clientId.value = settings.clientId;
   els.username.value = settings.username;
   els.password.value = settings.password;
   els.baseTopic.value = settings.baseTopic;
+  updateManifestLink();
 }
 
 function readSettings() {
@@ -62,9 +93,10 @@ function readSettings() {
     clientId: els.clientId.value.trim() || defaultSettings.clientId,
     username: els.username.value.trim(),
     password: els.password.value,
-    baseTopic: els.baseTopic.value.trim() || 'macro-pad'
+    baseTopic: els.baseTopic.value.trim() || DEFAULT_BASE_TOPIC
   };
   localStorage.setItem('macroPadMqtt', JSON.stringify(settings));
+  updateManifestLink();
 }
 
 function isStandalonePwa() {
@@ -102,6 +134,8 @@ function refreshInstallButton() {
 }
 
 async function installPwa() {
+  readSettings();
+  updateManifestLink();
   if (isStandalonePwa()) {
     setStatus('已經以 PWA 模式開啟。');
     refreshInstallButton();
@@ -381,6 +415,8 @@ els.settingsButton.addEventListener('click', showSettings);
 
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
+  readSettings();
+  updateManifestLink();
   deferredInstallPrompt = event;
   refreshInstallButton();
 });
