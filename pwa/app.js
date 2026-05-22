@@ -62,6 +62,7 @@ function applyUrlSettings() {
   if (overrides.reset) {
     localStorage.removeItem('macroPadMqtt');
     localStorage.removeItem('macroPadLayout');
+    clearAppCaches();
     settings = { ...defaultSettings };
     layout = null;
   }
@@ -73,6 +74,17 @@ function applyUrlSettings() {
   localStorage.setItem('macroPadMqtt', JSON.stringify(settings));
 }
 
+function clearAppCaches() {
+  if ('caches' in window) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+      .catch(() => {});
+  }
+  navigator.serviceWorker?.getRegistrations?.()
+    .then(registrations => registrations.forEach(registration => registration.update()))
+    .catch(() => {});
+}
+
 function updateManifestLink() {
   const topic = encodeURIComponent(settings.baseTopic || DEFAULT_BASE_TOPIC);
   const manifest = {
@@ -81,6 +93,8 @@ function updateManifestLink() {
     start_url: `./index.html?topic=${topic}`,
     scope: './',
     display: 'fullscreen',
+    display_override: ['fullscreen', 'standalone'],
+    orientation: 'landscape',
     background_color: '#101216',
     theme_color: '#101216',
     icons: [
@@ -126,18 +140,33 @@ function isStandalonePwa() {
 }
 
 async function enterFullscreen() {
-  if (!isStandalonePwa() || document.fullscreenElement) return;
+  if (document.fullscreenElement) {
+    await lockLandscape();
+    return;
+  }
   const root = document.documentElement;
-  if (!root.requestFullscreen) return;
+  if (root.requestFullscreen) {
+    try {
+      await root.requestFullscreen({ navigationUI: 'hide' });
+    } catch {
+      // Some browsers only allow this from a direct user gesture.
+    }
+  }
+  await lockLandscape();
+}
+
+async function lockLandscape() {
+  const orientation = screen.orientation;
+  if (!orientation?.lock) return;
   try {
-    await root.requestFullscreen({ navigationUI: 'hide' });
+    await orientation.lock('landscape');
   } catch {
-    // Some browsers only allow this from a direct user gesture.
+    // Android browsers may reject orientation lock outside fullscreen or PWA mode.
   }
 }
 
 function armStandaloneFullscreen() {
-  if (!isStandalonePwa() || fullscreenAttemptArmed) return;
+  if (fullscreenAttemptArmed) return;
   fullscreenAttemptArmed = true;
   const run = () => enterFullscreen();
   window.addEventListener('pointerdown', run, { once: true, passive: true });
