@@ -11,7 +11,8 @@ const defaultSettings = {
 function readUrlSettings() {
   const params = new URLSearchParams(window.location.search);
   return {
-    baseTopic: params.get('topic')?.trim() || ''
+    baseTopic: params.get('topic')?.trim() || '',
+    reset: params.get('reset') === '1'
   };
 }
 
@@ -43,6 +44,12 @@ const els = {
 
 function applyUrlSettings() {
   const overrides = readUrlSettings();
+  if (overrides.reset) {
+    localStorage.removeItem('macroPadMqtt');
+    localStorage.removeItem('macroPadLayout');
+    settings = { ...defaultSettings };
+    layout = null;
+  }
   if (!overrides.baseTopic) return;
   settings = {
     ...settings,
