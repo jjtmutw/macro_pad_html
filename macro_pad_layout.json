@@ -1,9 +1,6 @@
 {
   "version": 1,
   "deviceName": "Phone Stream Deck",
-  "mqtt": {
-    "baseTopic": "jj/notebook1/macro_pad"
-  },
   "grid": {
     "columns": 8,
     "rows": 3
@@ -774,5 +771,8 @@
         }
       ]
     }
-  ]
+  ],
+  "mqtt": {
+    "baseTopic": "jj/pc2/macro_pad"
+  }
 }
