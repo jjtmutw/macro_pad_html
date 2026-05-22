@@ -23,6 +23,8 @@ let pageIndex = 0;
 let deferredInstallPrompt = null;
 let fullscreenAttemptArmed = false;
 let manifestObjectUrl = null;
+let autoPageTimer = null;
+const AUTO_PAGE_INTERVAL_MS = 8000;
 const rotaryStates = new Map();
 
 const pageTitleById = {
@@ -229,11 +231,29 @@ function showDeck() {
   els.settingsPage.classList.add('hidden');
   els.deckPage.classList.remove('hidden');
   enterFullscreen();
+  startAutoPageRotation();
 }
 
 function showSettings() {
+  stopAutoPageRotation();
   els.deckPage.classList.add('hidden');
   els.settingsPage.classList.remove('hidden');
+}
+
+function startAutoPageRotation() {
+  stopAutoPageRotation();
+  if (!layout?.pages || layout.pages.length <= 1) return;
+  autoPageTimer = window.setInterval(() => {
+    if (els.deckPage.classList.contains('hidden') || !layout?.pages?.length) return;
+    pageIndex = (pageIndex + 1) % layout.pages.length;
+    render();
+  }, AUTO_PAGE_INTERVAL_MS);
+}
+
+function stopAutoPageRotation() {
+  if (!autoPageTimer) return;
+  window.clearInterval(autoPageTimer);
+  autoPageTimer = null;
 }
 
 function render() {
@@ -273,6 +293,7 @@ function render() {
     tab.addEventListener('click', () => {
       pageIndex = index;
       render();
+      startAutoPageRotation();
     });
     els.pageNav.appendChild(tab);
   });
