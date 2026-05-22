@@ -46,9 +46,17 @@ def bundled_root() -> Path:
 
 ROOT = runtime_root()
 BUNDLED_ROOT = bundled_root()
+DEFAULT_BASE_TOPIC = "jj/notebook1/macro_pad"
 DEFAULT_LAYOUT = ROOT / "macro_pad_layout.json"
 if not DEFAULT_LAYOUT.exists():
     DEFAULT_LAYOUT = BUNDLED_ROOT / "macro_pad_layout.json"
+
+
+def static_root() -> Path:
+    """Prefer editable files next to the exe, then fall back to bundled assets."""
+    if (ROOT / "config.html").exists() and (ROOT / "pwa").exists():
+        return ROOT
+    return BUNDLED_ROOT
 
 MEDIA_KEYS = {
     "play_pause": 0xB3,
@@ -325,9 +333,11 @@ def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
 
 
 def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
+    static_dir = static_root()
+
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
-            super().__init__(*args, directory=str(BUNDLED_ROOT), **kwargs)
+            super().__init__(*args, directory=str(static_dir), **kwargs)
 
         def end_headers(self) -> None:
             self.send_header("Cache-Control", "no-store")
@@ -395,7 +405,7 @@ def main() -> int:
     parser.add_argument(
         "--base-topic",
         default=None,
-        help="MQTT base topic. Defaults to mqtt.baseTopic in the layout JSON, then macro-pad.",
+        help=f"MQTT base topic. Defaults to mqtt.baseTopic in the layout JSON, then {DEFAULT_BASE_TOPIC}.",
     )
     parser.add_argument("--client-id", default=default_client_id())
     parser.add_argument("--http-host", default="0.0.0.0")
@@ -411,11 +421,12 @@ def main() -> int:
 
     layout_path = args.layout.resolve()
     startup_layout = load_layout(layout_path)
-    args.base_topic = (args.base_topic or layout_base_topic(startup_layout) or "macro-pad").strip().strip("/")
+    args.base_topic = (args.base_topic or layout_base_topic(startup_layout) or DEFAULT_BASE_TOPIC).strip().strip("/")
     http_server = None if args.no_http else start_http_server(args.http_host, args.http_port)
     if http_server:
         print(f"PWA/config server: http://{args.http_host}:{args.http_port}/pwa/")
         print(f"Config editor:      http://{args.http_host}:{args.http_port}/config.html")
+        print(f"Static files:       {static_root()}")
     print(f"Layout file:        {layout_path}")
 
     layout_topic = f"{args.base_topic}/layout"
