@@ -119,6 +119,19 @@ def load_layout(path: Path) -> dict[str, Any]:
         return json.load(file)
 
 
+def layout_base_topic(layout: dict[str, Any]) -> str:
+    mqtt_settings = layout.get("mqtt")
+    if isinstance(mqtt_settings, dict):
+        value = mqtt_settings.get("baseTopic") or mqtt_settings.get("base_topic")
+        if value:
+            return str(value).strip()
+    for key in ("mqttBaseTopic", "baseTopic", "base_topic"):
+        value = layout.get(key)
+        if value:
+            return str(value).strip()
+    return ""
+
+
 def normalize_action(payload: dict[str, Any]) -> dict[str, Any]:
     action = payload.get("action")
     if isinstance(action, dict):
@@ -379,7 +392,11 @@ def main() -> int:
     parser.add_argument("--mqtt-tls", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--mqtt-user", default="")
     parser.add_argument("--mqtt-password", default="")
-    parser.add_argument("--base-topic", default="macro-pad")
+    parser.add_argument(
+        "--base-topic",
+        default=None,
+        help="MQTT base topic. Defaults to mqtt.baseTopic in the layout JSON, then macro-pad.",
+    )
     parser.add_argument("--client-id", default=default_client_id())
     parser.add_argument("--http-host", default="0.0.0.0")
     parser.add_argument("--http-port", type=int, default=8080)
@@ -393,6 +410,8 @@ def main() -> int:
         return 1
 
     layout_path = args.layout.resolve()
+    startup_layout = load_layout(layout_path)
+    args.base_topic = (args.base_topic or layout_base_topic(startup_layout) or "macro-pad").strip().strip("/")
     http_server = None if args.no_http else start_http_server(args.http_host, args.http_port)
     if http_server:
         print(f"PWA/config server: http://{args.http_host}:{args.http_port}/pwa/")
@@ -420,6 +439,7 @@ def main() -> int:
 
     def publish_layout() -> None:
         layout = load_layout(layout_path)
+        layout.setdefault("mqtt", {})["baseTopic"] = args.base_topic
         client.publish(layout_topic, json.dumps(layout, ensure_ascii=False), qos=1, retain=True)
         print(f"Published layout to {layout_topic}")
 
