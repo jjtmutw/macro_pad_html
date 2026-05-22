@@ -1,7 +1,7 @@
 {
   "name": "Phone Macro Pad",
   "short_name": "Macro Pad",
-  "start_url": "./index.html",
+  "start_url": "./index.html?topic=jj%2Fnotebook1%2Fmacro_pad",
   "scope": "./",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],
