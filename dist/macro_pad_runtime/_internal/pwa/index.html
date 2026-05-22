@@ -16,7 +16,7 @@
   <main class="phone">
     <section id="settingsPage" class="settings">
       <h1>Macro Pad</h1>
-      <p>???????? Python runtime ???????</p>
+      <p>連線後會由電腦端 Python runtime 傳送控制頁面。</p>
       <div class="form">
         <label>MQTT WebSocket URL
           <input id="mqttUrl" value="wss://broker.emqx.io:8084/mqtt">
@@ -33,10 +33,10 @@
         <label>Base Topic
           <input id="baseTopic" value="macro-pad">
         </label>
-        <button id="installButton" class="secondary" type="button">?????</button>
-        <button id="connectButton">??</button>
+        <button id="installButton" class="secondary" type="button">加入主畫面</button>
+        <button id="connectButton">連線</button>
       </div>
-      <div id="status" class="status">????</div>
+      <div id="status" class="status">尚未連線</div>
     </section>
 
     <section id="deckPage" class="deck hidden">
@@ -50,7 +50,7 @@
         <div class="brand-title">PJJ Stream Deck</div>
         <div class="header-side">
           <div class="designer">Design by PJJ</div>
-          <div id="connectionState" class="connection">???</div>
+          <div id="connectionState" class="connection">未連線</div>
         </div>
       </header>
       <div id="grid" class="grid"></div>
