@@ -330,6 +330,7 @@
     const emptyLayout = {
       version: 1,
       deviceName: 'Phone Stream Deck',
+      mqtt: { baseTopic: 'jj/notebook1/macro_pad' },
       grid: { columns: 3, rows: 8 },
       display: { orientation: 'portrait' },
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
@@ -674,11 +675,12 @@
       ]
     };
 
+    const DEFAULT_BASE_TOPIC = 'jj/notebook1/macro_pad';
     let layout = JSON.parse(localStorage.getItem('macroPadLayout') || JSON.stringify(emptyLayout));
     let apps = [];
     let pageIndex = 0;
     let selectedSlot = 0;
-    let baseTopic = localStorage.getItem('macroPadBaseTopic') || 'jj/notebook1/macro_pad';
+    let baseTopic = localStorage.getItem('macroPadBaseTopic') || layoutBaseTopic() || DEFAULT_BASE_TOPIC;
 
     const gridEl = document.getElementById('grid');
     const deckShellEl = document.querySelector('.deck-shell');
@@ -701,8 +703,29 @@
     };
 
     function saveLocal(message = '已暫存到瀏覽器。') {
+      syncLayoutBaseTopic();
       localStorage.setItem('macroPadLayout', JSON.stringify(layout));
       statusEl.textContent = message;
+    }
+
+    function layoutBaseTopic() {
+      return layout?.mqtt?.baseTopic || layout?.mqttBaseTopic || layout?.baseTopic || '';
+    }
+
+    function syncLayoutBaseTopic() {
+      layout.mqtt ||= {};
+      layout.mqtt.baseTopic = baseTopic;
+    }
+
+    function applyLoadedLayoutSettings() {
+      const topic = layoutBaseTopic();
+      if (topic) {
+        baseTopic = topic;
+        localStorage.setItem('macroPadBaseTopic', baseTopic);
+      }
+      syncLayoutBaseTopic();
+      baseTopicInputEl.value = baseTopic;
+      updatePwaCard();
     }
 
     function getPwaUrl(topic = baseTopic) {
@@ -712,11 +735,12 @@
     }
 
     function updatePwaCard() {
-      const nextTopic = (baseTopicInputEl.value || '').trim() || 'jj/notebook1/macro_pad';
+      const nextTopic = (baseTopicInputEl.value || '').trim() || DEFAULT_BASE_TOPIC;
       if (nextTopic !== baseTopic) {
         baseTopic = nextTopic;
         localStorage.setItem('macroPadBaseTopic', baseTopic);
       }
+      syncLayoutBaseTopic();
       const url = getPwaUrl(baseTopic);
       pwaLinkEl.href = url;
       pwaLinkEl.textContent = url;
@@ -976,6 +1000,7 @@
       layout = JSON.parse(await file.text());
       pageIndex = 0;
       selectedSlot = 0;
+      applyLoadedLayoutSettings();
       saveLocal('已載入 layout JSON。');
       render();
     });
@@ -985,11 +1010,14 @@
       layout = await response.json();
       pageIndex = 0;
       selectedSlot = 0;
+      applyLoadedLayoutSettings();
       saveLocal('已載入目前資料夾的 layout。');
       render();
     });
 
     document.getElementById('exportJson').addEventListener('click', async () => {
+      updatePwaCard();
+      syncLayoutBaseTopic();
       const content = JSON.stringify(layout, null, 2);
       if ('showSaveFilePicker' in window) {
         const handle = await showSaveFilePicker({
