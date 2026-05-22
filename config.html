@@ -157,18 +157,14 @@
     .hint { color: #8d99a8; font-size: 12px; line-height: 1.5; }
     .status { min-height: 22px; color: #86efac; font-size: 13px; }
     .topic-card {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: min(320px, calc(100vw - 36px));
+      width: 100%;
       border: 1px solid #2b3340;
-      background: rgba(17, 23, 32, .96);
+      background: #0e141d;
       border-radius: 14px;
       padding: 14px;
-      box-shadow: 0 20px 48px rgba(0, 0, 0, .4);
-      z-index: 20;
       display: grid;
       gap: 10px;
+      margin-top: 20px;
     }
     .topic-card h2 {
       margin: 0;
@@ -206,11 +202,6 @@
     @media (max-width: 820px) {
       .app { display: block; }
       .sidebar, .workspace, .inspector { max-height: none; border: 0; border-bottom: 1px solid #252c38; }
-      .topic-card {
-        position: static;
-        width: auto;
-        margin: 18px;
-      }
     }
   </style>
 </head>
@@ -319,19 +310,21 @@
         </div>
         <p class="hint">若從 GitHub Pages 使用設定頁，建議匯入 app_icon_reporter.py 產生的 HTML 報表，才能把 icon 內嵌到 layout。Media command 可用：play_pause、next、previous、stop、mute、volume_down、volume_up。Hotkey 用逗號分隔，例如 ctrl,shift,esc。</p>
       </div>
+
+      <section class="topic-card" aria-label="PWA download link">
+          <h2>PWA Download</h2>
+          <p>Scan this QR code on your phone to open the PWA with the current MQTT topic.</p>
+          <a id="pwaLink" class="topic-link" href="#" target="_blank" rel="noreferrer"></a>
+          <img id="pwaQr" class="topic-qr" alt="PWA download QR code">
+          <div class="row">
+            <button id="copyPwaLink" class="primary" type="button">Copy Link</button>
+            <button id="openPwaLink" type="button">Open PWA</button>
+          </div>
+        </section>
     </aside>
   </div>
 
-  <section class="topic-card" aria-label="PWA download link">
-    <h2>PWA Download</h2>
-    <p>Scan this QR code on your phone to open the PWA with the current MQTT topic.</p>
-    <a id="pwaLink" class="topic-link" href="#" target="_blank" rel="noreferrer"></a>
-    <img id="pwaQr" class="topic-qr" alt="PWA download QR code">
-    <div class="row">
-      <button id="copyPwaLink" class="primary" type="button">Copy Link</button>
-      <button id="openPwaLink" type="button">Open PWA</button>
-    </div>
-  </section>
+
 
   <script>
     const emptyLayout = {
