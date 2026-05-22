@@ -429,6 +429,11 @@ def main() -> int:
             return
         transport = f"{args.mqtt_transport}{' TLS' if args.mqtt_tls else ''}"
         print(f"MQTT connected: {args.mqtt_host}:{args.mqtt_port} ({transport})")
+        print(f"MQTT Base Topic: {args.base_topic}")
+        print(f"  Layout Topic: {layout_topic}")
+        print(f"  Action Topic: {action_topic}")
+        print(f"  Hello Topic:  {hello_topic}")
+        print(f"  Status Topic: {status_topic}")
         client.subscribe([(action_topic, 1), (hello_topic, 1)])
         publish_layout()
 
