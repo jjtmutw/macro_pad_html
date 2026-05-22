@@ -157,18 +157,14 @@
     .hint { color: #8d99a8; font-size: 12px; line-height: 1.5; }
     .status { min-height: 22px; color: #86efac; font-size: 13px; }
     .topic-card {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: min(320px, calc(100vw - 36px));
+      width: 100%;
       border: 1px solid #2b3340;
-      background: rgba(17, 23, 32, .96);
+      background: #0e141d;
       border-radius: 14px;
       padding: 14px;
-      box-shadow: 0 20px 48px rgba(0, 0, 0, .4);
-      z-index: 20;
       display: grid;
       gap: 10px;
+      margin-top: 20px;
     }
     .topic-card h2 {
       margin: 0;
@@ -206,11 +202,6 @@
     @media (max-width: 820px) {
       .app { display: block; }
       .sidebar, .workspace, .inspector { max-height: none; border: 0; border-bottom: 1px solid #252c38; }
-      .topic-card {
-        position: static;
-        width: auto;
-        margin: 18px;
-      }
     }
   </style>
 </head>
@@ -319,24 +310,27 @@
         </div>
         <p class="hint">若從 GitHub Pages 使用設定頁，建議匯入 app_icon_reporter.py 產生的 HTML 報表，才能把 icon 內嵌到 layout。Media command 可用：play_pause、next、previous、stop、mute、volume_down、volume_up。Hotkey 用逗號分隔，例如 ctrl,shift,esc。</p>
       </div>
+
+      <section class="topic-card" aria-label="PWA download link">
+          <h2>PWA Download</h2>
+          <p>Scan this QR code on your phone to open the PWA with the current MQTT topic.</p>
+          <a id="pwaLink" class="topic-link" href="#" target="_blank" rel="noreferrer"></a>
+          <img id="pwaQr" class="topic-qr" alt="PWA download QR code">
+          <div class="row">
+            <button id="copyPwaLink" class="primary" type="button">Copy Link</button>
+            <button id="openPwaLink" type="button">Open PWA</button>
+          </div>
+        </section>
     </aside>
   </div>
 
-  <section class="topic-card" aria-label="PWA download link">
-    <h2>PWA Download</h2>
-    <p>Scan this QR code on your phone to open the PWA with the current MQTT topic.</p>
-    <a id="pwaLink" class="topic-link" href="#" target="_blank" rel="noreferrer"></a>
-    <img id="pwaQr" class="topic-qr" alt="PWA download QR code">
-    <div class="row">
-      <button id="copyPwaLink" class="primary" type="button">Copy Link</button>
-      <button id="openPwaLink" type="button">Open PWA</button>
-    </div>
-  </section>
+
 
   <script>
     const emptyLayout = {
       version: 1,
       deviceName: 'Phone Stream Deck',
+      mqtt: { baseTopic: 'jj/notebook1/macro_pad' },
       grid: { columns: 3, rows: 8 },
       display: { orientation: 'portrait' },
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
@@ -681,11 +675,12 @@
       ]
     };
 
+    const DEFAULT_BASE_TOPIC = 'jj/notebook1/macro_pad';
     let layout = JSON.parse(localStorage.getItem('macroPadLayout') || JSON.stringify(emptyLayout));
     let apps = [];
     let pageIndex = 0;
     let selectedSlot = 0;
-    let baseTopic = localStorage.getItem('macroPadBaseTopic') || 'jj/notebook1/macro_pad';
+    let baseTopic = localStorage.getItem('macroPadBaseTopic') || layoutBaseTopic() || DEFAULT_BASE_TOPIC;
 
     const gridEl = document.getElementById('grid');
     const deckShellEl = document.querySelector('.deck-shell');
@@ -708,22 +703,47 @@
     };
 
     function saveLocal(message = '已暫存到瀏覽器。') {
+      syncLayoutBaseTopic();
       localStorage.setItem('macroPadLayout', JSON.stringify(layout));
       statusEl.textContent = message;
+    }
+
+    function layoutBaseTopic() {
+      return layout?.mqtt?.baseTopic || layout?.mqttBaseTopic || layout?.baseTopic || '';
+    }
+
+    function syncLayoutBaseTopic() {
+      baseTopic = (baseTopicInputEl.value || '').trim() || baseTopic || DEFAULT_BASE_TOPIC;
+      localStorage.setItem('macroPadBaseTopic', baseTopic);
+      layout.mqtt ||= {};
+      layout.mqtt.baseTopic = baseTopic;
+    }
+
+    function applyLoadedLayoutSettings() {
+      const topic = layoutBaseTopic();
+      if (topic) {
+        baseTopic = topic;
+        localStorage.setItem('macroPadBaseTopic', baseTopic);
+      }
+      syncLayoutBaseTopic();
+      baseTopicInputEl.value = baseTopic;
+      updatePwaCard();
     }
 
     function getPwaUrl(topic = baseTopic) {
       const url = new URL('https://jjtmutw.github.io/macro_pad_html/pwa/index.html');
       if (topic) url.searchParams.set('topic', topic);
+      url.searchParams.set('reset', '1');
       return url.toString();
     }
 
     function updatePwaCard() {
-      const nextTopic = (baseTopicInputEl.value || '').trim() || 'jj/notebook1/macro_pad';
+      const nextTopic = (baseTopicInputEl.value || '').trim() || DEFAULT_BASE_TOPIC;
       if (nextTopic !== baseTopic) {
         baseTopic = nextTopic;
         localStorage.setItem('macroPadBaseTopic', baseTopic);
       }
+      syncLayoutBaseTopic();
       const url = getPwaUrl(baseTopic);
       pwaLinkEl.href = url;
       pwaLinkEl.textContent = url;
@@ -983,6 +1003,7 @@
       layout = JSON.parse(await file.text());
       pageIndex = 0;
       selectedSlot = 0;
+      applyLoadedLayoutSettings();
       saveLocal('已載入 layout JSON。');
       render();
     });
@@ -992,11 +1013,14 @@
       layout = await response.json();
       pageIndex = 0;
       selectedSlot = 0;
+      applyLoadedLayoutSettings();
       saveLocal('已載入目前資料夾的 layout。');
       render();
     });
 
     document.getElementById('exportJson').addEventListener('click', async () => {
+      updatePwaCard();
+      syncLayoutBaseTopic();
       const content = JSON.stringify(layout, null, 2);
       if ('showSaveFilePicker' in window) {
         const handle = await showSaveFilePicker({

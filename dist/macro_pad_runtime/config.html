@@ -713,6 +713,8 @@
     }
 
     function syncLayoutBaseTopic() {
+      baseTopic = (baseTopicInputEl.value || '').trim() || baseTopic || DEFAULT_BASE_TOPIC;
+      localStorage.setItem('macroPadBaseTopic', baseTopic);
       layout.mqtt ||= {};
       layout.mqtt.baseTopic = baseTopic;
     }
@@ -731,6 +733,7 @@
     function getPwaUrl(topic = baseTopic) {
       const url = new URL('https://jjtmutw.github.io/macro_pad_html/pwa/index.html');
       if (topic) url.searchParams.set('topic', topic);
+      url.searchParams.set('reset', '1');
       return url.toString();
     }
 
