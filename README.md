@@ -96,6 +96,24 @@ python macro_pad_runtime.py --base-topic macro-pad
 --http-port 8080
 ```
 
+開機自動啟動設定：
+
+```powershell
+# 使用 Python 版本安裝目前設定到 Windows 登入自動啟動
+python macro_pad_runtime.py --install-startup
+
+# 使用 exe 版本安裝目前設定到 Windows 登入自動啟動
+dist\macro_pad_runtime\macro_pad_runtime.exe --install-startup
+
+# 查詢目前自動啟動命令
+python macro_pad_runtime.py --startup-status
+
+# 移除自動啟動
+python macro_pad_runtime.py --uninstall-startup
+```
+
+此設定寫入目前使用者的 Windows Registry Run key，不需要系統管理員權限。
+
 Runtime 會：
 
 - 讀取 `macro_pad_layout.json`

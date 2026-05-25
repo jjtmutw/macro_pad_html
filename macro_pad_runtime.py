@@ -50,6 +50,8 @@ DEFAULT_BASE_TOPIC = "jj/notebook1/macro_pad"
 DEFAULT_LAYOUT = ROOT / "macro_pad_layout.json"
 if not DEFAULT_LAYOUT.exists():
     DEFAULT_LAYOUT = BUNDLED_ROOT / "macro_pad_layout.json"
+STARTUP_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+DEFAULT_STARTUP_NAME = "MacroPadRuntime"
 
 
 def static_root() -> Path:
@@ -138,6 +140,68 @@ def layout_base_topic(layout: dict[str, Any]) -> str:
         if value:
             return str(value).strip()
     return ""
+
+
+def startup_executable() -> list[str]:
+    if getattr(sys, "frozen", False):
+        return [str(Path(sys.executable).resolve())]
+    return [str(Path(sys.executable).resolve()), str(Path(__file__).resolve())]
+
+
+def startup_command(args: argparse.Namespace, layout_path: Path, explicit_base_topic: str | None) -> str:
+    command = [
+        *startup_executable(),
+        "--layout",
+        str(layout_path),
+        "--mqtt-host",
+        str(args.mqtt_host),
+        "--mqtt-port",
+        str(args.mqtt_port),
+        "--mqtt-transport",
+        str(args.mqtt_transport),
+        "--mqtt-websocket-path",
+        str(args.mqtt_websocket_path),
+        "--http-host",
+        str(args.http_host),
+        "--http-port",
+        str(args.http_port),
+    ]
+    if not args.mqtt_tls:
+        command.append("--no-mqtt-tls")
+    if args.mqtt_user:
+        command.extend(["--mqtt-user", str(args.mqtt_user)])
+    if args.mqtt_password:
+        command.extend(["--mqtt-password", str(args.mqtt_password)])
+    if explicit_base_topic:
+        command.extend(["--base-topic", explicit_base_topic])
+    if args.no_http:
+        command.append("--no-http")
+    if args.allow_shell:
+        command.append("--allow-shell")
+    return subprocess.list2cmdline(command)
+
+
+def install_startup(name: str, command: str) -> None:
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, STARTUP_RUN_KEY) as key:
+        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, command)
+
+
+def uninstall_startup(name: str) -> bool:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+            winreg.DeleteValue(key, name)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def startup_status(name: str) -> str:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_RUN_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, name)
+        return str(value)
+    except FileNotFoundError:
+        return ""
 
 
 def normalize_action(payload: dict[str, Any]) -> dict[str, Any]:
@@ -412,16 +476,41 @@ def main() -> int:
     parser.add_argument("--http-port", type=int, default=8080)
     parser.add_argument("--no-http", action="store_true", help="Disable the optional local static web server.")
     parser.add_argument("--allow-shell", action="store_true")
+    parser.add_argument("--startup-name", default=DEFAULT_STARTUP_NAME, help="Windows startup entry name.")
+    parser.add_argument("--install-startup", action="store_true", help="Install this runtime to auto-start when Windows signs in.")
+    parser.add_argument("--uninstall-startup", action="store_true", help="Remove this runtime from Windows auto-start.")
+    parser.add_argument("--startup-status", action="store_true", help="Print the Windows auto-start command, if installed.")
     args = parser.parse_args()
+
+    layout_path = args.layout.resolve()
+    startup_layout = load_layout(layout_path)
+    explicit_base_topic = args.base_topic.strip().strip("/") if args.base_topic else None
+    args.base_topic = (explicit_base_topic or layout_base_topic(startup_layout) or DEFAULT_BASE_TOPIC).strip().strip("/")
+
+    if args.install_startup:
+        command = startup_command(args, layout_path, explicit_base_topic)
+        install_startup(args.startup_name, command)
+        print(f"Installed Windows startup entry: {args.startup_name}")
+        print(command)
+        return 0
+    if args.uninstall_startup:
+        removed = uninstall_startup(args.startup_name)
+        print(f"{'Removed' if removed else 'No existing'} Windows startup entry: {args.startup_name}")
+        return 0
+    if args.startup_status:
+        command = startup_status(args.startup_name)
+        if command:
+            print(f"Windows startup entry: {args.startup_name}")
+            print(command)
+        else:
+            print(f"Windows startup entry is not installed: {args.startup_name}")
+        return 0
+
     try:
         acquire_single_instance_lock()
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-
-    layout_path = args.layout.resolve()
-    startup_layout = load_layout(layout_path)
-    args.base_topic = (args.base_topic or layout_base_topic(startup_layout) or DEFAULT_BASE_TOPIC).strip().strip("/")
     http_server = None if args.no_http else start_http_server(args.http_host, args.http_port)
     if http_server:
         print(f"PWA/config server: http://{args.http_host}:{args.http_port}/pwa/")
