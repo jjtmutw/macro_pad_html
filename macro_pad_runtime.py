@@ -135,6 +135,7 @@ OFFICE_ICON_TARGETS = {
 
 ERROR_ALREADY_EXISTS = 183
 _single_instance_mutex: int | None = None
+_current_music_filename = ""
 
 
 def load_layout(path: Path) -> dict[str, Any]:
@@ -354,6 +355,8 @@ def run_media(action: dict[str, Any]) -> None:
     app_command = APPCOMMANDS.get(command)
     if not vk and app_command is None:
         raise ValueError(f"unknown media command: {command}")
+    if command in {"next", "previous"} and play_adjacent_music(command):
+        return
     if command in {"next", "previous"} and app_command is not None:
         send_app_command(app_command)
         return
@@ -383,9 +386,31 @@ def resolve_music_file(filename: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> Pa
     raise FileNotFoundError(f"mp3 not found in Music folder: {requested}")
 
 
+def open_music_file(path: Path) -> None:
+    global _current_music_filename
+    _current_music_filename = path.name
+    os.startfile(str(path))
+
+
 def run_music_play(action: dict[str, Any]) -> None:
     path = resolve_music_file(str(action.get("filename") or action.get("path") or ""))
-    os.startfile(str(path))
+    open_music_file(path)
+
+
+def play_adjacent_music(command: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> bool:
+    if command not in {"next", "previous"} or not _current_music_filename:
+        return False
+    files = music_files(music_dir)
+    if not files:
+        return False
+    current = _current_music_filename.casefold()
+    try:
+        index = next(i for i, name in enumerate(files) if name.casefold() == current)
+    except StopIteration:
+        return False
+    offset = 1 if command == "next" else -1
+    open_music_file(music_dir / files[(index + offset) % len(files)])
+    return True
 
 
 def run_hotkey(action: dict[str, Any]) -> None:
