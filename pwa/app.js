@@ -267,12 +267,14 @@ function connect() {
 }
 
 function showDeck() {
+  document.body.classList.add('deck-open');
   els.settingsPage.classList.add('hidden');
   els.deckPage.classList.remove('hidden');
   enterFullscreen();
 }
 
 function showSettings() {
+  document.body.classList.remove('deck-open');
   els.deckPage.classList.add('hidden');
   els.settingsPage.classList.remove('hidden');
 }
