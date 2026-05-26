@@ -71,6 +71,18 @@ MEDIA_KEYS = {
     "volume_up": 0xAF,
 }
 
+WM_APPCOMMAND = 0x0319
+HWND_BROADCAST = 0xFFFF
+APPCOMMANDS = {
+    "next": 11,
+    "previous": 12,
+    "stop": 13,
+    "play_pause": 14,
+    "mute": 8,
+    "volume_down": 9,
+    "volume_up": 10,
+}
+
 KEY_ALIASES = {
     "ctrl": 0x11,
     "control": 0x11,
@@ -339,9 +351,17 @@ def press_virtual_key(vk: int, modifiers: list[int] | None = None) -> None:
 def run_media(action: dict[str, Any]) -> None:
     command = str(action.get("command") or "")
     vk = MEDIA_KEYS.get(command)
-    if not vk:
+    app_command = APPCOMMANDS.get(command)
+    if not vk and app_command is None:
         raise ValueError(f"unknown media command: {command}")
+    if command in {"next", "previous"} and app_command is not None:
+        send_app_command(app_command)
+        return
     press_virtual_key(vk)
+
+
+def send_app_command(command: int) -> None:
+    ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, command << 16)
 
 
 def music_files(music_dir: Path = DEFAULT_MUSIC_DIR) -> list[str]:
