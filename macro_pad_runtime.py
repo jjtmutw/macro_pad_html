@@ -596,6 +596,7 @@ def main() -> int:
     status_topic = f"{args.base_topic}/status"
     music_request_topic = f"{args.base_topic}/music/request"
     music_list_topic = f"{args.base_topic}/music/list"
+    music_current_topic = f"{args.base_topic}/music/current"
     recent_actions: OrderedDict[str, float] = OrderedDict()
 
     client = mqtt.Client(
@@ -621,10 +622,22 @@ def main() -> int:
         payload = {
             "directory": str(DEFAULT_MUSIC_DIR),
             "files": music_files(),
+            "current": _current_music_filename,
             "at": int(time.time() * 1000),
         }
         client.publish(music_list_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=False)
         print(f"Published music list to {music_list_topic}: {len(payload['files'])} mp3 files")
+
+    def publish_current_music() -> None:
+        if not _current_music_filename:
+            return
+        payload = {
+            "directory": str(DEFAULT_MUSIC_DIR),
+            "filename": _current_music_filename,
+            "at": int(time.time() * 1000),
+        }
+        client.publish(music_current_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=True)
+        print(f"Published current music to {music_current_topic}: {_current_music_filename}")
 
     def on_connect(client: mqtt.Client, _userdata: Any, _flags: Any, reason_code: Any, _props: Any) -> None:
         if reason_code != 0:
@@ -638,18 +651,22 @@ def main() -> int:
         print(f"  Hello Topic:  {hello_topic}")
         print(f"  Status Topic: {status_topic}")
         print(f"  Music Topic:  {music_list_topic}")
+        print(f"  Current Song: {music_current_topic}")
         client.subscribe([(action_topic, 1), (hello_topic, 1), (music_request_topic, 0)])
         publish_layout()
         publish_music_list()
+        publish_current_music()
 
     def on_message(client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         try:
             if msg.topic == hello_topic:
                 publish_layout()
                 publish_music_list()
+                publish_current_music()
                 return
             if msg.topic == music_request_topic:
                 publish_music_list()
+                publish_current_music()
                 return
             payload = json.loads(msg.payload.decode("utf-8"))
             dedupe_key = action_dedupe_key(payload)
@@ -666,6 +683,7 @@ def main() -> int:
             recent_actions[dedupe_key] = now
             action = normalize_action(payload)
             execute_action(action, allow_shell=args.allow_shell)
+            publish_current_music()
             client.publish(status_topic, json.dumps({"ok": True, "id": payload.get("id")}), qos=0)
             print(f"Executed: {action.get('type')} {action.get('_label') or payload.get('label', '')}")
         except Exception as exc:

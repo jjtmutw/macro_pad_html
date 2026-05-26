@@ -227,6 +227,7 @@ function connect() {
     client.subscribe(`${settings.baseTopic}/layout`, { qos: 1 });
     client.subscribe(`${settings.baseTopic}/status`, { qos: 0 });
     client.subscribe(`${settings.baseTopic}/music/list`, { qos: 0 });
+    client.subscribe(`${settings.baseTopic}/music/current`, { qos: 0 });
     client.publish(`${settings.baseTopic}/hello`, JSON.stringify({ clientId: settings.clientId, at: Date.now() }));
     requestMusicList();
   });
@@ -247,9 +248,15 @@ function connect() {
     if (topic.endsWith('/music/list')) {
       const message = JSON.parse(payload.toString());
       musicFiles = Array.isArray(message.files) ? message.files.map(String) : [];
+      if (message.current) selectedMusicFile = String(message.current);
       if (selectedMusicFile && !musicFiles.includes(selectedMusicFile)) selectedMusicFile = '';
       if (!selectedMusicFile && musicFiles.length) selectedMusicFile = musicFiles[0];
       render();
+      return;
+    }
+    if (topic.endsWith('/music/current')) {
+      const message = JSON.parse(payload.toString());
+      selectCurrentMusic(message.filename);
       return;
     }
     if (topic.endsWith('/layout')) {
@@ -263,6 +270,16 @@ function connect() {
       const message = JSON.parse(payload.toString());
       els.connectionState.textContent = message.ok ? '已執行' : '執行失敗';
     }
+  });
+}
+
+function selectCurrentMusic(filename) {
+  const nextFile = String(filename || '').trim();
+  if (!nextFile) return;
+  selectedMusicFile = nextFile;
+  render();
+  requestAnimationFrame(() => {
+    document.querySelector('.music-row.selected')?.scrollIntoView({ block: 'nearest' });
   });
 }
 
