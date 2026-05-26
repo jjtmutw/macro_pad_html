@@ -247,10 +247,9 @@
           <h1 id="currentPageTitle">啟動應用程式</h1>
           <p>每頁 24 格，手機 PWA 會依照這份 layout 顯示。</p>
         </div>
-        <div class="row" style="max-width:420px">
+        <div class="row" style="max-width:260px">
           <button id="addPage">新增頁面</button>
           <button id="removePage" class="danger">刪除此頁</button>
-          <button id="clearPageButtons" class="danger">清空所有的格子</button>
         </div>
       </div>
       <div id="pageTabs" class="page-tabs"></div>
@@ -332,15 +331,27 @@
       version: 1,
       deviceName: 'Phone Stream Deck',
       mqtt: { baseTopic: 'jj/notebook1/macro_pad' },
-      grid: { columns: 3, rows: 8 },
-      display: { orientation: 'portrait' },
+      grid: { columns: 8, rows: 3 },
+      display: { orientation: 'landscape' },
       theme: { background: '#101216', surface: '#181c22', accent: '#4cc9f0', text: '#f8fafc' },
       pages: [
         { id: 'apps', title: '啟動應用程式', buttons: [] },
         { id: 'media', title: '多媒體操控', buttons: [
                   {
-                            "id": "media-prev",
+                            "id": "music-list",
                             "slot": 0,
+                            "spanColumns": 4,
+                            "spanRows": 3,
+                            "label": "Music MP3",
+                            "icon": "MP3",
+                            "color": "#111827",
+                            "action": {
+                                      "type": "music_list"
+                            }
+                  },
+                  {
+                            "id": "media-prev",
+                            "slot": 4,
                             "label": "上一首",
                             "icon": "⏮",
                             "color": "#22c55e",
@@ -351,7 +362,7 @@
                   },
                   {
                             "id": "media-play",
-                            "slot": 1,
+                            "slot": 12,
                             "label": "播放/暫停",
                             "icon": "⏯",
                             "color": "#22c55e",
@@ -362,7 +373,7 @@
                   },
                   {
                             "id": "media-next",
-                            "slot": 2,
+                            "slot": 20,
                             "label": "下一首",
                             "icon": "⏭",
                             "color": "#22c55e",
@@ -373,7 +384,7 @@
                   },
                   {
                             "id": "volume-rotary",
-                            "slot": 4,
+                            "slot": 5,
                             "spanColumns": 3,
                             "spanRows": 3,
                             "label": "音量旋鈕",
@@ -974,13 +985,6 @@
       pageIndex = Math.max(0, pageIndex - 1);
       selectedSlot = 0;
       saveLocal('已刪除頁面。');
-      render();
-    });
-
-    document.getElementById('clearPageButtons').addEventListener('click', () => {
-      page().buttons = [];
-      selectedSlot = 0;
-      saveLocal('已清空此頁所有格子。');
       render();
     });
 

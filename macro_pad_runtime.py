@@ -52,6 +52,7 @@ if not DEFAULT_LAYOUT.exists():
     DEFAULT_LAYOUT = BUNDLED_ROOT / "macro_pad_layout.json"
 STARTUP_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 DEFAULT_STARTUP_NAME = "MacroPadRuntime"
+DEFAULT_MUSIC_DIR = Path.home() / "Music"
 
 
 def static_root() -> Path:
@@ -211,7 +212,7 @@ def normalize_action(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         normalized = dict(payload)
 
-    for key in ("targetPath", "path", "arguments", "workingDirectory", "command", "keys", "text"):
+    for key in ("targetPath", "path", "arguments", "workingDirectory", "command", "keys", "text", "filename"):
         if not normalized.get(key) and payload.get(key):
             normalized[key] = payload[key]
     for key in ("id", "label", "page", "slot"):
@@ -343,6 +344,30 @@ def run_media(action: dict[str, Any]) -> None:
     press_virtual_key(vk)
 
 
+def music_files(music_dir: Path = DEFAULT_MUSIC_DIR) -> list[str]:
+    if not music_dir.exists():
+        return []
+    return sorted(
+        (path.name for path in music_dir.iterdir() if path.is_file() and path.suffix.casefold() == ".mp3"),
+        key=str.casefold,
+    )
+
+
+def resolve_music_file(filename: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> Path:
+    requested = Path(str(filename)).name
+    if not requested:
+        raise ValueError("music_play action missing filename")
+    for name in music_files(music_dir):
+        if name.casefold() == requested.casefold():
+            return music_dir / name
+    raise FileNotFoundError(f"mp3 not found in Music folder: {requested}")
+
+
+def run_music_play(action: dict[str, Any]) -> None:
+    path = resolve_music_file(str(action.get("filename") or action.get("path") or ""))
+    os.startfile(str(path))
+
+
 def run_hotkey(action: dict[str, Any]) -> None:
     keys = action.get("keys")
     if not isinstance(keys, list) or not keys:
@@ -386,6 +411,8 @@ def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
         run_launch(action)
     elif action_type == "media":
         run_media(action)
+    elif action_type == "music_play":
+        run_music_play(action)
     elif action_type == "hotkey":
         run_hotkey(action)
     elif action_type == "text":
@@ -522,6 +549,8 @@ def main() -> int:
     action_topic = f"{args.base_topic}/action"
     hello_topic = f"{args.base_topic}/hello"
     status_topic = f"{args.base_topic}/status"
+    music_request_topic = f"{args.base_topic}/music/request"
+    music_list_topic = f"{args.base_topic}/music/list"
     recent_actions: OrderedDict[str, float] = OrderedDict()
 
     client = mqtt.Client(
@@ -543,6 +572,15 @@ def main() -> int:
         client.publish(layout_topic, json.dumps(layout, ensure_ascii=False), qos=1, retain=True)
         print(f"Published layout to {layout_topic}")
 
+    def publish_music_list() -> None:
+        payload = {
+            "directory": str(DEFAULT_MUSIC_DIR),
+            "files": music_files(),
+            "at": int(time.time() * 1000),
+        }
+        client.publish(music_list_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=False)
+        print(f"Published music list to {music_list_topic}: {len(payload['files'])} mp3 files")
+
     def on_connect(client: mqtt.Client, _userdata: Any, _flags: Any, reason_code: Any, _props: Any) -> None:
         if reason_code != 0:
             print(f"MQTT connect failed: {reason_code}", file=sys.stderr)
@@ -554,13 +592,19 @@ def main() -> int:
         print(f"  Action Topic: {action_topic}")
         print(f"  Hello Topic:  {hello_topic}")
         print(f"  Status Topic: {status_topic}")
-        client.subscribe([(action_topic, 1), (hello_topic, 1)])
+        print(f"  Music Topic:  {music_list_topic}")
+        client.subscribe([(action_topic, 1), (hello_topic, 1), (music_request_topic, 0)])
         publish_layout()
+        publish_music_list()
 
     def on_message(client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         try:
             if msg.topic == hello_topic:
                 publish_layout()
+                publish_music_list()
+                return
+            if msg.topic == music_request_topic:
+                publish_music_list()
                 return
             payload = json.loads(msg.payload.decode("utf-8"))
             dedupe_key = action_dedupe_key(payload)

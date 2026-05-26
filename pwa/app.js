@@ -23,7 +23,11 @@ let pageIndex = 0;
 let deferredInstallPrompt = null;
 let fullscreenAttemptArmed = false;
 let manifestObjectUrl = null;
+let autoPageTimer = null;
+const AUTO_PAGE_INTERVAL_MS = 8000;
 const rotaryStates = new Map();
+let musicFiles = [];
+let selectedMusicFile = '';
 
 const pageTitleById = {
   apps: '啟動應用程式',
@@ -224,7 +228,9 @@ function connect() {
     els.connectionState.textContent = '已連線';
     client.subscribe(`${settings.baseTopic}/layout`, { qos: 1 });
     client.subscribe(`${settings.baseTopic}/status`, { qos: 0 });
+    client.subscribe(`${settings.baseTopic}/music/list`, { qos: 0 });
     client.publish(`${settings.baseTopic}/hello`, JSON.stringify({ clientId: settings.clientId, at: Date.now() }));
+    requestMusicList();
   });
 
   client.on('reconnect', () => {
@@ -240,6 +246,14 @@ function connect() {
   });
 
   client.on('message', (topic, payload) => {
+    if (topic.endsWith('/music/list')) {
+      const message = JSON.parse(payload.toString());
+      musicFiles = Array.isArray(message.files) ? message.files.map(String) : [];
+      if (selectedMusicFile && !musicFiles.includes(selectedMusicFile)) selectedMusicFile = '';
+      if (!selectedMusicFile && musicFiles.length) selectedMusicFile = musicFiles[0];
+      render();
+      return;
+    }
     if (topic.endsWith('/layout')) {
       layout = JSON.parse(payload.toString());
       localStorage.setItem('macroPadLayout', JSON.stringify(layout));
@@ -258,11 +272,29 @@ function showDeck() {
   els.settingsPage.classList.add('hidden');
   els.deckPage.classList.remove('hidden');
   enterFullscreen();
+  startAutoPageRotation();
 }
 
 function showSettings() {
+  stopAutoPageRotation();
   els.deckPage.classList.add('hidden');
   els.settingsPage.classList.remove('hidden');
+}
+
+function startAutoPageRotation() {
+  stopAutoPageRotation();
+  if (!layout?.pages || layout.pages.length <= 1) return;
+  autoPageTimer = window.setInterval(() => {
+    if (els.deckPage.classList.contains('hidden') || !layout?.pages?.length) return;
+    pageIndex = (pageIndex + 1) % layout.pages.length;
+    render();
+  }, AUTO_PAGE_INTERVAL_MS);
+}
+
+function stopAutoPageRotation() {
+  if (!autoPageTimer) return;
+  window.clearInterval(autoPageTimer);
+  autoPageTimer = null;
 }
 
 function render() {
@@ -279,14 +311,17 @@ function render() {
   for (let slot = 0; slot < columns * rows; slot++) {
     if (isCoveredSlot(page.buttons || [], slot, columns)) continue;
     const button = page.buttons?.find(item => Number(item.slot) === slot);
-    const node = document.createElement('button');
-    node.className = `pad-button ${button?.action?.type === 'rotary' ? 'rotary-pad' : ''} ${button ? '' : 'empty'}`;
-    node.disabled = !button;
+    const isMusicList = button?.action?.type === 'music_list';
+    const node = document.createElement(isMusicList ? 'section' : 'button');
+    node.className = `pad-button ${button?.action?.type === 'rotary' ? 'rotary-pad' : ''} ${isMusicList ? 'music-list-panel' : ''} ${button ? '' : 'empty'}`;
+    if (!isMusicList) node.disabled = !button;
     if (button?.spanColumns) node.style.gridColumn = `span ${button.spanColumns}`;
     if (button?.spanRows) node.style.gridRow = `span ${button.spanRows}`;
-    if (button?.color) node.style.background = `linear-gradient(145deg, ${button.color}, #0f172a)`;
+    if (button?.color && !isMusicList) node.style.background = `linear-gradient(145deg, ${button.color}, #0f172a)`;
     node.innerHTML = button ? renderButton(button) : '';
-    if (button?.action?.type === 'rotary') {
+    if (isMusicList) {
+      setupMusicList(node);
+    } else if (button?.action?.type === 'rotary') {
       setupRotary(node, button);
     } else {
       node.addEventListener('click', () => sendAction(button));
@@ -302,6 +337,7 @@ function render() {
     tab.addEventListener('click', () => {
       pageIndex = index;
       render();
+      startAutoPageRotation();
     });
     els.pageNav.appendChild(tab);
   });
@@ -331,9 +367,39 @@ function applyDisplaySettings() {
 }
 
 function renderButton(button) {
+  if (button.action?.type === 'music_list') return renderMusicList();
   if (button.action?.type === 'rotary') return renderRotary(button);
   const image = button.iconUrl ? `<img src="${escapeHtml(resolveIconUrl(button.iconUrl))}" alt="">` : `<div class="glyph">${escapeHtml(button.icon || '')}</div>`;
   return `<span class="pad-inner">${image}<span class="label">${escapeHtml(displayButtonLabel(button))}</span></span>`;
+}
+
+function renderMusicList() {
+  const rows = musicFiles.length
+    ? musicFiles.map(file => `
+        <button class="music-row ${file === selectedMusicFile ? 'selected' : ''}" type="button" data-file="${escapeHtml(file)}">
+          <span>${escapeHtml(file.replace(/\.mp3$/i, ''))}</span>
+        </button>`).join('')
+    : '<div class="music-empty">Music 目錄沒有 mp3</div>';
+  return `
+    <div class="music-header">
+      <strong>Music MP3</strong>
+      <button class="music-refresh" type="button" aria-label="Refresh music list">↻</button>
+    </div>
+    <div class="music-rows">${rows}</div>`;
+}
+
+function setupMusicList(node) {
+  node.querySelector('.music-refresh')?.addEventListener('click', event => {
+    event.stopPropagation();
+    requestMusicList();
+  });
+  node.querySelectorAll('.music-row').forEach(row => {
+    row.addEventListener('click', () => {
+      selectedMusicFile = row.dataset.file || '';
+      sendMusicSelection(selectedMusicFile);
+      render();
+    });
+  });
 }
 
 function renderRotary(button) {
@@ -466,6 +532,27 @@ function sendAction(button, actionOverride = null) {
   };
   client.publish(`${settings.baseTopic}/action`, JSON.stringify(payload), { qos: 1 });
   navigator.vibrate?.(18);
+}
+
+function sendMusicSelection(filename) {
+  if (!filename || !client?.connected) return;
+  client.publish(`${settings.baseTopic}/action`, JSON.stringify({
+    id: 'music-list',
+    label: filename,
+    page: layout.pages[pageIndex]?.id,
+    slot: 0,
+    action: { type: 'music_play', filename },
+    at: Date.now()
+  }), { qos: 1 });
+  navigator.vibrate?.(18);
+}
+
+function requestMusicList() {
+  if (!client?.connected) return;
+  client.publish(`${settings.baseTopic}/music/request`, JSON.stringify({
+    clientId: settings.clientId,
+    at: Date.now()
+  }), { qos: 0 });
 }
 
 function setStatus(text) {

@@ -1,6 +1,13 @@
 __pycache__/
 *.pyc
 build/
+.pyinstaller_cache/
+.pyinstaller_patch/__pycache__/
+_build_*/
+_dist_*/
+_github_*/
+_local_backup_*/
+_publish_*/
 installed-app-icons-report/
 selected-apps-output/
 runtime_test_output.txt
