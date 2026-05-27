@@ -154,6 +154,157 @@
     }
     .cell .label { font-size: 11px; line-height: 1.2; margin-top: 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .cell .slot { position: absolute; top: 4px; left: 6px; color: #6b7280; font-size: 10px; }
+    .cell .preview-shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .music-preview {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98));
+    }
+    .music-preview-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 24px;
+      gap: 4px;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 4px 3px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .music-preview-tabs {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .music-preview-tab,
+    .music-preview-refresh {
+      border-radius: 6px;
+      border: 1px solid rgba(148,163,184,.28);
+      background: rgba(30,41,59,.72);
+      color: rgba(226,232,240,.82);
+      display: grid;
+      place-items: center;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .music-preview-tab {
+      min-height: 18px;
+      padding: 0 4px;
+    }
+    .music-preview-tab.active {
+      color: #061018;
+      background: #7dd3fc;
+      border-color: #bae6fd;
+    }
+    .music-preview-refresh {
+      min-height: 18px;
+      width: 20px;
+      justify-self: end;
+      font-size: 12px;
+    }
+    .music-preview-rows {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      padding: 5px 5px 5px 16px;
+    }
+    .music-preview-row {
+      min-height: 22px;
+      border-radius: 6px;
+      border: 1px solid rgba(148,163,184,.28);
+      background: rgba(30,41,59,.72);
+      color: #e2e8f0;
+      display: grid;
+      align-items: center;
+      justify-items: start;
+      padding: 0 8px;
+      text-align: left;
+      font-size: 9px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .music-preview-row.selected {
+      color: #061018;
+      background: #7dd3fc;
+      border-color: #bae6fd;
+    }
+    .rotary-preview-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 12px 8px 8px;
+      color: #d9eef2;
+      background:
+        radial-gradient(circle at 50% 22%, rgba(255,255,255,.12), transparent 28%),
+        linear-gradient(145deg, #3f4650, #11151b);
+    }
+    .rotary-preview-title {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 800;
+      color: rgba(255,255,255,.56);
+      white-space: nowrap;
+    }
+    .rotary-preview-ring {
+      position: relative;
+      width: 72%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(255,255,255,.14), transparent 54%),
+        radial-gradient(circle at 50% 50%, #353535 0%, #222 62%, #111 100%);
+      box-shadow: inset 0 2px 3px rgba(255,255,255,.1), inset 0 -10px 16px rgba(0,0,0,.85), 0 8px 14px rgba(0,0,0,.45);
+    }
+    .rotary-preview-dial {
+      position: absolute;
+      inset: 16%;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, #0e0e0e 0deg, #909090 42deg, #f8f8f8 86deg, #9d9d9d 122deg, #1f1f1f 180deg, #040404 220deg, #5b5b5b 280deg, #ededed 320deg, #1b1b1b 360deg);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,.32), inset 0 -8px 14px rgba(0,0,0,.82), 0 8px 18px rgba(0,0,0,.55);
+      transform: rotate(var(--rotary-angle, 0deg));
+    }
+    .rotary-preview-dial::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 8%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 24%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fff, rgba(255,255,255,.18));
+      box-shadow: 0 0 10px rgba(255,255,255,.35);
+    }
+    .rotary-preview-value {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30%;
+      aspect-ratio: 1.08 / 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #30343b, #111);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,.16), inset 0 -5px 9px rgba(0,0,0,.7), 0 8px 16px rgba(0,0,0,.45);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+    }
     .hint { color: #8d99a8; font-size: 12px; line-height: 1.5; }
     .status { min-height: 22px; color: #86efac; font-size: 13px; }
     .topic-card {
@@ -247,9 +398,10 @@
           <h1 id="currentPageTitle">啟動應用程式</h1>
           <p>每頁 24 格，手機 PWA 會依照這份 layout 顯示。</p>
         </div>
-        <div class="row" style="max-width:260px">
+        <div class="row" style="max-width:420px">
           <button id="addPage">新增頁面</button>
           <button id="removePage" class="danger">刪除此頁</button>
+          <button id="clearPageButtons" class="danger">清空所有格子</button>
         </div>
       </div>
       <div id="pageTabs" class="page-tabs"></div>
@@ -290,6 +442,7 @@
           <select id="actionType">
             <option value="launch">啟動應用程式</option>
             <option value="media">多媒體控制</option>
+            <option value="music_list">多媒體清單</option>
             <option value="rotary">旋鈕控制</option>
             <option value="hotkey">鍵盤快捷鍵</option>
             <option value="text">輸入文字</option>
@@ -845,11 +998,47 @@
     function renderButtonContent(button, slot) {
       if (!button) return `<span class="slot">${slot + 1}</span><span>+</span>`;
       const bg = button.color || '#2563eb';
+      if (button.action?.type === 'music_list') {
+        return renderMusicListPreview(slot);
+      }
       if (button.action?.type === 'rotary') {
-        return `<span class="slot">${slot + 1}</span><div style="background:${bg};position:absolute;inset:0;opacity:.72"></div><div style="position:relative;display:grid;place-items:center;gap:8px"><div class="glyph">◉</div><div class="label">${escapeHtml(button.label || '')}<br>3 x 3</div></div>`;
+        return renderRotaryPreview(button, slot);
       }
       const image = button.iconUrl ? `<img class="button-icon" src="${escapeHtml(resolvePreviewIconUrl(button.iconUrl))}" alt="">` : `<div class="glyph">${escapeHtml(button.icon || '')}</div>`;
       return `<span class="slot">${slot + 1}</span><div style="background:${bg};position:absolute;inset:0;opacity:.72"></div><div style="position:relative">${image}<div class="label">${escapeHtml(button.label || '')}</div></div>`;
+    }
+
+    function renderMusicListPreview(slot) {
+      const rows = ['Blue Bird', 'Night Drive', 'Skyline'].map((name, index) =>
+        `<div class="music-preview-row ${index === 1 ? 'selected' : ''}">${escapeHtml(name)}</div>`
+      ).join('');
+      return `<span class="slot">${slot + 1}</span>
+        <div class="preview-shell music-preview">
+          <div class="music-preview-header">
+            <div class="music-preview-tabs">
+              <div class="music-preview-tab active">MP3</div>
+              <div class="music-preview-tab">MP4</div>
+            </div>
+            <div class="music-preview-refresh">↻</div>
+          </div>
+          <div class="music-preview-rows">${rows}</div>
+        </div>`;
+    }
+
+    function renderRotaryPreview(button, slot) {
+      const value = Number(button.value ?? 50);
+      return `<span class="slot">${slot + 1}</span>
+        <div class="preview-shell rotary-preview-card">
+          <div class="rotary-preview-title">${escapeHtml(button.label || '音量旋鈕')}</div>
+          <div class="rotary-preview-ring">
+            <div class="rotary-preview-dial" style="--rotary-angle:${valueToRotation(value)}deg"></div>
+          </div>
+          <div class="rotary-preview-value">${String(value).padStart(2, '0')}</div>
+        </div>`;
+    }
+
+    function valueToRotation(value) {
+      return -140 + (value / 100) * 280;
     }
 
     function renderInspector() {
@@ -914,6 +1103,7 @@
     function buildAction() {
       const type = inputs.type.value;
       if (type === 'media') return { type, command: inputs.args.value.trim() || 'play_pause' };
+      if (type === 'music_list') return { type };
       if (type === 'rotary') return {
         type,
         command: 'volume',
@@ -935,7 +1125,9 @@
     document.getElementById('applyButton').addEventListener('click', () => {
       page().title = inputs.pageTitle.value.trim() || page().title;
       updateDisplaySettings();
-      const defaultColor = inputs.type.value === 'media'
+      const defaultColor = inputs.type.value === 'music_list'
+        ? '#111827'
+        : inputs.type.value === 'media'
         ? '#22c55e'
         : inputs.type.value === 'rotary'
           ? '#14532d'
@@ -985,6 +1177,13 @@
       pageIndex = Math.max(0, pageIndex - 1);
       selectedSlot = 0;
       saveLocal('已刪除頁面。');
+      render();
+    });
+
+    document.getElementById('clearPageButtons').addEventListener('click', () => {
+      page().buttons = [];
+      selectedSlot = 0;
+      saveLocal('已清空此頁所有格子。');
       render();
     });
 
