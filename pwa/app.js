@@ -1,4 +1,4 @@
-const DEFAULT_BASE_TOPIC = 'jj/notebook1/macro_pad';
+﻿const DEFAULT_BASE_TOPIC = 'jj/notebook1/macro_pad';
 
 const defaultSettings = {
   mqttUrl: 'wss://broker.emqx.io:8084/mqtt',
@@ -24,8 +24,9 @@ let deferredInstallPrompt = null;
 let fullscreenAttemptArmed = false;
 let manifestObjectUrl = null;
 const rotaryStates = new Map();
-let musicFiles = [];
-let selectedMusicFile = '';
+let mediaKind = localStorage.getItem('macroPadMediaKind') || 'mp3';
+const mediaFiles = { mp3: [], mp4: [] };
+const selectedMediaFile = { mp3: '', mp4: '' };
 
 const pageTitleById = {
   apps: '啟動應用程式',
@@ -228,8 +229,11 @@ function connect() {
     client.subscribe(`${settings.baseTopic}/status`, { qos: 0 });
     client.subscribe(`${settings.baseTopic}/music/list`, { qos: 0 });
     client.subscribe(`${settings.baseTopic}/music/current`, { qos: 0 });
+    client.subscribe(`${settings.baseTopic}/media/list`, { qos: 0 });
+    client.subscribe(`${settings.baseTopic}/media/current`, { qos: 0 });
     client.publish(`${settings.baseTopic}/hello`, JSON.stringify({ clientId: settings.clientId, at: Date.now() }));
-    requestMusicList();
+    requestMediaList('mp3');
+    requestMediaList('mp4');
   });
 
   client.on('reconnect', () => {
@@ -245,18 +249,19 @@ function connect() {
   });
 
   client.on('message', (topic, payload) => {
-    if (topic.endsWith('/music/list')) {
+    if (topic.endsWith('/media/list') || topic.endsWith('/music/list')) {
       const message = JSON.parse(payload.toString());
-      musicFiles = Array.isArray(message.files) ? message.files.map(String) : [];
-      if (message.current) selectedMusicFile = String(message.current);
-      if (selectedMusicFile && !musicFiles.includes(selectedMusicFile)) selectedMusicFile = '';
-      if (!selectedMusicFile && musicFiles.length) selectedMusicFile = musicFiles[0];
+      const kind = message.kind === 'mp4' ? 'mp4' : 'mp3';
+      mediaFiles[kind] = Array.isArray(message.files) ? message.files.map(String) : [];
+      if (message.current) selectedMediaFile[kind] = String(message.current);
+      if (selectedMediaFile[kind] && !mediaFiles[kind].includes(selectedMediaFile[kind])) selectedMediaFile[kind] = '';
+      if (!selectedMediaFile[kind] && mediaFiles[kind].length) selectedMediaFile[kind] = mediaFiles[kind][0];
       render();
       return;
     }
-    if (topic.endsWith('/music/current')) {
+    if (topic.endsWith('/media/current') || topic.endsWith('/music/current')) {
       const message = JSON.parse(payload.toString());
-      selectCurrentMusic(message.filename);
+      selectCurrentMedia(message.kind === 'mp4' ? 'mp4' : 'mp3', message.filename);
       return;
     }
     if (topic.endsWith('/layout')) {
@@ -273,13 +278,16 @@ function connect() {
   });
 }
 
-function selectCurrentMusic(filename) {
+function selectCurrentMedia(kind, filename) {
   const nextFile = String(filename || '').trim();
   if (!nextFile) return;
-  selectedMusicFile = nextFile;
+  const nextKind = kind === 'mp4' ? 'mp4' : 'mp3';
+  selectedMediaFile[nextKind] = nextFile;
   render();
   requestAnimationFrame(() => {
-    document.querySelector('.music-row.selected')?.scrollIntoView({ block: 'nearest' });
+    if (nextKind === mediaKind) {
+      document.querySelector('.music-row.selected')?.scrollIntoView({ block: 'nearest' });
+    }
   });
 }
 
@@ -372,34 +380,48 @@ function renderButton(button) {
 }
 
 function renderMusicList() {
-  const rows = musicFiles.length
-    ? musicFiles.map(file => `
-        <button class="music-row ${file === selectedMusicFile ? 'selected' : ''}" type="button" data-file="${escapeHtml(file)}">
-          <span>${escapeHtml(file.replace(/\.mp3$/i, ''))}</span>
+  const files = mediaFiles[mediaKind] || [];
+  const selectedFile = selectedMediaFile[mediaKind] || '';
+  const extension = mediaKind === 'mp4' ? /\.mp4$/i : /\.mp3$/i;
+  const rows = files.length
+    ? files.map(file => `
+        <button class="music-row ${file === selectedFile ? 'selected' : ''}" type="button" data-file="${escapeHtml(file)}">
+          <span>${escapeHtml(file.replace(extension, ''))}</span>
         </button>`).join('')
-    : '<div class="music-empty">Music 目錄沒有 mp3</div>';
+    : `<div class="music-empty">${mediaKind === 'mp4' ? '影片' : '音樂'} 目錄沒有 ${mediaKind.toUpperCase()}</div>`;
   return `
     <div class="music-header">
-      <strong>Music MP3</strong>
-      <button class="music-refresh" type="button" aria-label="Refresh music list">↻</button>
+      <div class="media-tabs" role="tablist" aria-label="Media type">
+        <button class="${mediaKind === 'mp3' ? 'active' : ''}" type="button" data-kind="mp3" role="tab" aria-selected="${mediaKind === 'mp3'}">MP3</button>
+        <button class="${mediaKind === 'mp4' ? 'active' : ''}" type="button" data-kind="mp4" role="tab" aria-selected="${mediaKind === 'mp4'}">MP4</button>
+      </div>
+      <button class="music-refresh" type="button" aria-label="Refresh media list">↻</button>
     </div>
     <div class="music-rows">${rows}</div>`;
 }
 
 function setupMusicList(node) {
+  node.querySelectorAll('.media-tabs button').forEach(tab => {
+    tab.addEventListener('click', event => {
+      event.stopPropagation();
+      mediaKind = tab.dataset.kind === 'mp4' ? 'mp4' : 'mp3';
+      localStorage.setItem('macroPadMediaKind', mediaKind);
+      requestMediaList(mediaKind);
+      render();
+    });
+  });
   node.querySelector('.music-refresh')?.addEventListener('click', event => {
     event.stopPropagation();
-    requestMusicList();
+    requestMediaList(mediaKind);
   });
   node.querySelectorAll('.music-row').forEach(row => {
     row.addEventListener('click', () => {
-      selectedMusicFile = row.dataset.file || '';
-      sendMusicSelection(selectedMusicFile);
+      selectedMediaFile[mediaKind] = row.dataset.file || '';
+      sendMediaSelection(mediaKind, selectedMediaFile[mediaKind]);
       render();
     });
   });
 }
-
 function renderRotary(button) {
   const state = rotaryState(button);
   const segments = Array.from({ length: 28 }, (_, index) => {
@@ -532,25 +554,34 @@ function sendAction(button, actionOverride = null) {
   navigator.vibrate?.(18);
 }
 
-function sendMusicSelection(filename) {
+function sendMediaSelection(kind, filename) {
   if (!filename || !client?.connected) return;
+  const nextKind = kind === 'mp4' ? 'mp4' : 'mp3';
   client.publish(`${settings.baseTopic}/action`, JSON.stringify({
-    id: 'music-list',
+    id: `${nextKind}-list`,
     label: filename,
     page: layout.pages[pageIndex]?.id,
     slot: 0,
-    action: { type: 'music_play', filename },
+    action: { type: nextKind === 'mp4' ? 'video_play' : 'music_play', filename },
     at: Date.now()
   }), { qos: 1 });
   navigator.vibrate?.(18);
 }
 
-function requestMusicList() {
+function requestMediaList(kind = mediaKind) {
   if (!client?.connected) return;
-  client.publish(`${settings.baseTopic}/music/request`, JSON.stringify({
+  const nextKind = kind === 'mp4' ? 'mp4' : 'mp3';
+  client.publish(`${settings.baseTopic}/media/request`, JSON.stringify({
     clientId: settings.clientId,
+    kind: nextKind,
     at: Date.now()
   }), { qos: 0 });
+  if (nextKind === 'mp3') {
+    client.publish(`${settings.baseTopic}/music/request`, JSON.stringify({
+      clientId: settings.clientId,
+      at: Date.now()
+    }), { qos: 0 });
+  }
 }
 
 function setStatus(text) {
@@ -590,3 +621,4 @@ if (layout) {
   showDeck();
   render();
 }
+

@@ -23,6 +23,7 @@ import subprocess
 import sys
 import threading
 import time
+from urllib.parse import parse_qs, quote, unquote, urlparse
 import uuid
 import winreg
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -53,6 +54,7 @@ if not DEFAULT_LAYOUT.exists():
 STARTUP_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 DEFAULT_STARTUP_NAME = "MacroPadRuntime"
 DEFAULT_MUSIC_DIR = Path.home() / "Music"
+DEFAULT_VIDEO_DIR = Path.home() / "Videos"
 
 
 def static_root() -> Path:
@@ -135,7 +137,10 @@ OFFICE_ICON_TARGETS = {
 
 ERROR_ALREADY_EXISTS = 183
 _single_instance_mutex: int | None = None
+_current_media_kind = "mp3"
 _current_music_filename = ""
+_current_video_filename = ""
+_http_port = 8080
 
 
 def load_layout(path: Path) -> dict[str, Any]:
@@ -355,7 +360,7 @@ def run_media(action: dict[str, Any]) -> None:
     app_command = APPCOMMANDS.get(command)
     if not vk and app_command is None:
         raise ValueError(f"unknown media command: {command}")
-    if command in {"next", "previous"} and play_adjacent_music(command):
+    if command in {"next", "previous"} and play_adjacent_media(command):
         return
     if command in {"next", "previous"} and app_command is not None:
         send_app_command(app_command)
@@ -367,13 +372,42 @@ def send_app_command(command: int) -> None:
     ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, command << 16)
 
 
-def music_files(music_dir: Path = DEFAULT_MUSIC_DIR) -> list[str]:
-    if not music_dir.exists():
+def media_dir(kind: str) -> Path:
+    return DEFAULT_VIDEO_DIR if kind == "mp4" else DEFAULT_MUSIC_DIR
+
+
+def media_extension(kind: str) -> str:
+    return ".mp4" if kind == "mp4" else ".mp3"
+
+
+def media_files(kind: str, directory: Path | None = None) -> list[str]:
+    directory = directory or media_dir(kind)
+    extension = media_extension(kind)
+    if not directory.exists():
         return []
     return sorted(
-        (path.name for path in music_dir.iterdir() if path.is_file() and path.suffix.casefold() == ".mp3"),
+        (path.name for path in directory.iterdir() if path.is_file() and path.suffix.casefold() == extension),
         key=str.casefold,
     )
+
+
+def music_files(music_dir: Path = DEFAULT_MUSIC_DIR) -> list[str]:
+    return media_files("mp3", music_dir)
+
+
+def video_files(video_dir: Path = DEFAULT_VIDEO_DIR) -> list[str]:
+    return media_files("mp4", video_dir)
+
+
+def resolve_media_file(kind: str, filename: str) -> Path:
+    requested = Path(str(filename)).name
+    if not requested:
+        raise ValueError(f"{kind}_play action missing filename")
+    directory = media_dir(kind)
+    for name in media_files(kind, directory):
+        if name.casefold() == requested.casefold():
+            return directory / name
+    raise FileNotFoundError(f"{media_extension(kind)} not found in {directory}: {requested}")
 
 
 def resolve_music_file(filename: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> Path:
@@ -387,9 +421,17 @@ def resolve_music_file(filename: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> Pa
 
 
 def open_music_file(path: Path) -> None:
-    global _current_music_filename
+    global _current_media_kind, _current_music_filename
+    _current_media_kind = "mp3"
     _current_music_filename = path.name
     os.startfile(str(path))
+
+
+def open_video_file(path: Path) -> None:
+    global _current_media_kind, _current_video_filename
+    _current_media_kind = "mp4"
+    _current_video_filename = path.name
+    open_pc_video_player(path.name)
 
 
 def run_music_play(action: dict[str, Any]) -> None:
@@ -397,20 +439,65 @@ def run_music_play(action: dict[str, Any]) -> None:
     open_music_file(path)
 
 
-def play_adjacent_music(command: str, music_dir: Path = DEFAULT_MUSIC_DIR) -> bool:
-    if command not in {"next", "previous"} or not _current_music_filename:
+def run_video_play(action: dict[str, Any]) -> None:
+    path = resolve_media_file("mp4", str(action.get("filename") or action.get("path") or ""))
+    open_video_file(path)
+
+
+def play_adjacent_media(command: str) -> bool:
+    if command not in {"next", "previous"}:
         return False
-    files = music_files(music_dir)
+    kind = _current_media_kind
+    current_filename = _current_video_filename if kind == "mp4" else _current_music_filename
+    if not current_filename:
+        return False
+    files = media_files(kind)
     if not files:
         return False
-    current = _current_music_filename.casefold()
+    current = current_filename.casefold()
     try:
         index = next(i for i, name in enumerate(files) if name.casefold() == current)
     except StopIteration:
         return False
     offset = 1 if command == "next" else -1
-    open_music_file(music_dir / files[(index + offset) % len(files)])
+    next_path = media_dir(kind) / files[(index + offset) % len(files)]
+    if kind == "mp4":
+        open_video_file(next_path)
+    else:
+        open_music_file(next_path)
     return True
+
+
+def play_next_video_after(filename: str) -> str:
+    global _current_media_kind, _current_video_filename
+    files = video_files()
+    current = Path(filename).name.casefold()
+    try:
+        index = next(i for i, name in enumerate(files) if name.casefold() == current)
+    except StopIteration:
+        return ""
+    next_index = index + 1
+    if next_index >= len(files):
+        return ""
+    next_name = files[next_index]
+    _current_media_kind = "mp4"
+    _current_video_filename = next_name
+    return next_name
+
+
+def open_pc_video_player(filename: str) -> None:
+    url = f"http://127.0.0.1:{_http_port}/pc_video_player.html?file={quote(filename)}"
+    candidates = [
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for browser in candidates:
+        if Path(browser).exists():
+            subprocess.Popen([browser, "--start-fullscreen", "--autoplay-policy=no-user-gesture-required", url])
+            return
+    os.startfile(url)
 
 
 def run_hotkey(action: dict[str, Any]) -> None:
@@ -458,6 +545,8 @@ def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
         run_media(action)
     elif action_type == "music_play":
         run_music_play(action)
+    elif action_type == "video_play":
+        run_video_play(action)
     elif action_type == "hotkey":
         run_hotkey(action)
     elif action_type == "text":
@@ -468,12 +557,118 @@ def execute_action(action: dict[str, Any], allow_shell: bool) -> None:
         raise ValueError(f"unsupported or disabled action type: {action_type}")
 
 
+def guess_content_type(path: Path) -> str:
+    if path.suffix.casefold() == ".mp4":
+        return "video/mp4"
+    return "application/octet-stream"
+
+
 def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
+    global _http_port
+    _http_port = port
     static_dir = static_root()
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=str(static_dir), **kwargs)
+
+        def do_GET(self) -> None:
+            parsed = urlparse(self.path)
+            if parsed.path == "/pc_video_player.html":
+                self.serve_pc_video_player()
+                return
+            if parsed.path.startswith("/media/mp4/"):
+                filename = unquote(parsed.path.removeprefix("/media/mp4/"))
+                self.serve_media_file("mp4", filename)
+                return
+            if parsed.path == "/media/video-ended":
+                filename = parse_qs(parsed.query).get("file", [""])[0]
+                next_name = play_next_video_after(filename)
+                payload = json.dumps({"next": next_name}, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+            super().do_GET()
+
+        def serve_pc_video_player(self) -> None:
+            html = """<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PC MP4 Player</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    video { width: 100vw; height: 100vh; object-fit: contain; background: #000; display: block; }
+  </style>
+</head>
+<body>
+  <video id="player" autoplay controls playsinline></video>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file') || '';
+    const player = document.getElementById('player');
+    player.src = '/media/mp4/' + encodeURIComponent(file);
+    player.addEventListener('loadedmetadata', async () => {
+      try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch {}
+      try { await player.play(); } catch {}
+    });
+    player.addEventListener('ended', async () => {
+      const res = await fetch('/media/video-ended?file=' + encodeURIComponent(file));
+      const data = await res.json();
+      if (data.next) location.replace('/pc_video_player.html?file=' + encodeURIComponent(data.next));
+      else window.close();
+    });
+  </script>
+</body>
+</html>"""
+            data = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def serve_media_file(self, kind: str, filename: str) -> None:
+            try:
+                path = resolve_media_file(kind, filename)
+            except Exception:
+                self.send_error(404)
+                return
+            size = path.stat().st_size
+            range_header = self.headers.get("Range", "")
+            start = 0
+            end = size - 1
+            status = 200
+            if range_header.startswith("bytes="):
+                status = 206
+                start_text, _, end_text = range_header.removeprefix("bytes=").partition("-")
+                start = int(start_text or 0)
+                end = int(end_text or end)
+                end = min(end, size - 1)
+            if start > end or start >= size:
+                self.send_error(416)
+                return
+            length = end - start + 1
+            self.send_response(status)
+            self.send_header("Content-Type", guess_content_type(path))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(length))
+            if status == 206:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            with path.open("rb") as file:
+                file.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = file.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
 
         def end_headers(self) -> None:
             self.send_header("Cache-Control", "no-store")
@@ -597,6 +792,9 @@ def main() -> int:
     music_request_topic = f"{args.base_topic}/music/request"
     music_list_topic = f"{args.base_topic}/music/list"
     music_current_topic = f"{args.base_topic}/music/current"
+    media_request_topic = f"{args.base_topic}/media/request"
+    media_list_topic = f"{args.base_topic}/media/list"
+    media_current_topic = f"{args.base_topic}/media/current"
     recent_actions: OrderedDict[str, float] = OrderedDict()
 
     client = mqtt.Client(
@@ -618,26 +816,43 @@ def main() -> int:
         client.publish(layout_topic, json.dumps(layout, ensure_ascii=False), qos=1, retain=True)
         print(f"Published layout to {layout_topic}")
 
-    def publish_music_list() -> None:
+    def current_filename(kind: str) -> str:
+        return _current_video_filename if kind == "mp4" else _current_music_filename
+
+    def publish_media_list(kind: str = "mp3") -> None:
+        kind = "mp4" if kind == "mp4" else "mp3"
         payload = {
-            "directory": str(DEFAULT_MUSIC_DIR),
-            "files": music_files(),
-            "current": _current_music_filename,
+            "kind": kind,
+            "directory": str(media_dir(kind)),
+            "files": media_files(kind),
+            "current": current_filename(kind),
             "at": int(time.time() * 1000),
         }
-        client.publish(music_list_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=False)
-        print(f"Published music list to {music_list_topic}: {len(payload['files'])} mp3 files")
+        client.publish(media_list_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=False)
+        if kind == "mp3":
+            client.publish(music_list_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=False)
+        print(f"Published {kind} list to {media_list_topic}: {len(payload['files'])} files")
 
-    def publish_current_music() -> None:
-        if not _current_music_filename:
+    def publish_music_list() -> None:
+        publish_media_list("mp3")
+
+    def publish_current_media() -> None:
+        filename = current_filename(_current_media_kind)
+        if not filename:
             return
         payload = {
-            "directory": str(DEFAULT_MUSIC_DIR),
-            "filename": _current_music_filename,
+            "kind": _current_media_kind,
+            "directory": str(media_dir(_current_media_kind)),
+            "filename": filename,
             "at": int(time.time() * 1000),
         }
-        client.publish(music_current_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=True)
-        print(f"Published current music to {music_current_topic}: {_current_music_filename}")
+        client.publish(media_current_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=True)
+        if _current_media_kind == "mp3":
+            client.publish(music_current_topic, json.dumps(payload, ensure_ascii=False), qos=0, retain=True)
+        print(f"Published current {_current_media_kind} to {media_current_topic}: {filename}")
+
+    def publish_current_music() -> None:
+        publish_current_media()
 
     def on_connect(client: mqtt.Client, _userdata: Any, _flags: Any, reason_code: Any, _props: Any) -> None:
         if reason_code != 0:
@@ -651,22 +866,31 @@ def main() -> int:
         print(f"  Hello Topic:  {hello_topic}")
         print(f"  Status Topic: {status_topic}")
         print(f"  Music Topic:  {music_list_topic}")
+        print(f"  Media Topic:  {media_list_topic}")
         print(f"  Current Song: {music_current_topic}")
-        client.subscribe([(action_topic, 1), (hello_topic, 1), (music_request_topic, 0)])
+        print(f"  Current Media:{media_current_topic}")
+        client.subscribe([(action_topic, 1), (hello_topic, 1), (music_request_topic, 0), (media_request_topic, 0)])
         publish_layout()
-        publish_music_list()
+        publish_media_list("mp3")
+        publish_media_list("mp4")
         publish_current_music()
 
     def on_message(client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         try:
             if msg.topic == hello_topic:
                 publish_layout()
-                publish_music_list()
+                publish_media_list("mp3")
+                publish_media_list("mp4")
                 publish_current_music()
                 return
             if msg.topic == music_request_topic:
                 publish_music_list()
                 publish_current_music()
+                return
+            if msg.topic == media_request_topic:
+                request = json.loads(msg.payload.decode("utf-8") or "{}")
+                publish_media_list(str(request.get("kind") or "mp3"))
+                publish_current_media()
                 return
             payload = json.loads(msg.payload.decode("utf-8"))
             dedupe_key = action_dedupe_key(payload)
@@ -683,7 +907,7 @@ def main() -> int:
             recent_actions[dedupe_key] = now
             action = normalize_action(payload)
             execute_action(action, allow_shell=args.allow_shell)
-            publish_current_music()
+            publish_current_media()
             client.publish(status_topic, json.dumps({"ok": True, "id": payload.get("id")}), qos=0)
             print(f"Executed: {action.get('type')} {action.get('_label') or payload.get('label', '')}")
         except Exception as exc:
@@ -697,7 +921,10 @@ def main() -> int:
     try:
         print(f"Connecting MQTT: {args.mqtt_host}:{args.mqtt_port}")
         client.connect(args.mqtt_host, args.mqtt_port, keepalive=30)
-        client.loop_forever()
+        while True:
+            rc = client.loop_forever(retry_first_connection=True)
+            print(f"MQTT loop ended with code {rc}; reconnecting in 5 seconds.", file=sys.stderr)
+            time.sleep(5)
     except (ConnectionRefusedError, OSError) as exc:
         print(f"MQTT connection failed: {exc}", file=sys.stderr)
         print(
