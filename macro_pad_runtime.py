@@ -471,14 +471,15 @@ def play_adjacent_media(command: str) -> bool:
 def play_next_video_after(filename: str) -> str:
     global _current_media_kind, _current_video_filename
     files = video_files()
+    if not files:
+        return ""
     current = Path(filename).name.casefold()
     try:
         index = next(i for i, name in enumerate(files) if name.casefold() == current)
     except StopIteration:
-        return ""
-    next_index = index + 1
-    if next_index >= len(files):
-        return ""
+        next_index = 0
+    else:
+        next_index = (index + 1) % len(files)
     next_name = files[next_index]
     _current_media_kind = "mp4"
     _current_video_filename = next_name
@@ -488,14 +489,25 @@ def play_next_video_after(filename: str) -> str:
 def open_pc_video_player(filename: str) -> None:
     url = f"http://127.0.0.1:{_http_port}/pc_video_player.html?file={quote(filename)}"
     candidates = [
-        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
-        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
         os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
         os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
     ]
     for browser in candidates:
         if Path(browser).exists():
-            subprocess.Popen([browser, "--start-fullscreen", "--autoplay-policy=no-user-gesture-required", url])
+            browser_path = Path(browser)
+            args = [str(browser_path), "--start-fullscreen", "--autoplay-policy=no-user-gesture-required"]
+            if browser_path.name.casefold() == "chrome.exe":
+                profile_dir = ROOT / ".chrome-video-player"
+                args.extend([
+                    f"--user-data-dir={profile_dir}",
+                    "--no-first-run",
+                    "--disable-session-crashed-bubble",
+                    "--new-window",
+                ])
+            args.append(url)
+            subprocess.Popen(args)
             return
     os.startfile(url)
 
@@ -574,6 +586,11 @@ def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
 
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
+            if parsed.path == "/favicon.ico":
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             if parsed.path == "/pc_video_player.html":
                 self.serve_pc_video_player()
                 return
@@ -606,15 +623,35 @@ def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
   </style>
 </head>
 <body>
-  <video id="player" autoplay controls playsinline></video>
+  <video id="player" autoplay controls playsinline preload="auto"></video>
   <script>
     const params = new URLSearchParams(location.search);
     const file = params.get('file') || '';
     const player = document.getElementById('player');
     player.src = '/media/mp4/' + encodeURIComponent(file);
+    async function enterFullscreen() {
+      try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); return; } catch {}
+      try { await player.requestFullscreen(); return; } catch {}
+      try { player.webkitRequestFullscreen(); } catch {}
+    }
+    async function startPlayback(allowMutedFallback = true) {
+      player.muted = false;
+      try { await player.play(); return; } catch {}
+      if (!allowMutedFallback) return;
+      try {
+        player.muted = true;
+        await player.play();
+        setTimeout(() => { player.muted = false; }, 250);
+      } catch {}
+    }
     player.addEventListener('loadedmetadata', async () => {
-      try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch {}
-      try { await player.play(); } catch {}
+      await enterFullscreen();
+      await startPlayback();
+    });
+    player.addEventListener('canplay', () => startPlayback());
+    document.addEventListener('click', async () => {
+      await enterFullscreen();
+      await startPlayback(false);
     });
     player.addEventListener('ended', async () => {
       const res = await fetch('/media/video-ended?file=' + encodeURIComponent(file));
@@ -663,12 +700,15 @@ def start_http_server(host: str, port: int) -> ThreadingHTTPServer:
             with path.open("rb") as file:
                 file.seek(start)
                 remaining = length
-                while remaining > 0:
-                    chunk = file.read(min(1024 * 1024, remaining))
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
-                    remaining -= len(chunk)
+                try:
+                    while remaining > 0:
+                        chunk = file.read(min(1024 * 1024, remaining))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+                except ConnectionError:
+                    return
 
         def end_headers(self) -> None:
             self.send_header("Cache-Control", "no-store")

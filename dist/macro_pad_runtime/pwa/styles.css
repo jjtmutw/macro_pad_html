@@ -205,13 +205,30 @@ button {
   border-bottom: 1px solid rgba(255,255,255,.1);
 }
 
-.music-header strong {
+.media-tabs {
   min-width: 0;
-  font-size: clamp(12px, 2vw, 16px);
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.media-tabs button {
+  min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: clamp(11px, 1.9vw, 13px);
+  font-weight: 900;
+  color: rgba(226,232,240,.82);
+  background: rgba(30,41,59,.72);
+  border-color: rgba(148,163,184,.28);
+}
+
+.media-tabs button.active {
+  color: #061018;
+  background: #7dd3fc;
+  border-color: #bae6fd;
 }
 
 .music-refresh {
